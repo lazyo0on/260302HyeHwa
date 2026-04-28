@@ -119,7 +119,8 @@
     </div>
 
     <script>
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
+        // ★여기에 개인 계정(@gmail.com)으로 새로 배포한 웹 앱 URL을 넣어주세요!★
+        const GAS_WEB_APP_URL = '여기에_웹앱_URL을_붙여넣으세요'; 
         
         let MOCK_SHEET_DATA = { users: [], missions: [] };
         let UPLOADS = {};
@@ -146,6 +147,12 @@
 
         // --- 1. [데이터 로드] ---
         async function fetchInitialData() {
+            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요') {
+                alert("코드 상단에 새 구글 웹 앱 URL을 먼저 입력해주세요!");
+                loadingScreen.classList.add('hidden');
+                return;
+            }
+
             try {
                 const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
                 const data = await response.json();
@@ -333,7 +340,6 @@
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
 
-            // ★ 해결책 1: 업로드 직후 즉각적이고 끊김없는 화면 구성을 위해 메모리의 로컬 URL을 생성합니다.
             const localVideoUrl = URL.createObjectURL(file); 
 
             const reader = new FileReader();
@@ -363,7 +369,6 @@
                     
                     if(result.success) {
                         if (!UPLOADS[time]) UPLOADS[time] = {};
-                        // 구글 드라이브 URL 대기 없이 즉각적으로 화면에 보여주기 위해 로컬 URL 적용
                         UPLOADS[time][studentId] = { videoUrl: localVideoUrl, text: finalPayloadText };
                         renderApp(); 
                     } else {
@@ -444,7 +449,8 @@
                                         <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                                             영상 선택
-                                            <input type="file" accept="video/*" capture="environment" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
+                                            <!-- capture="environment" 삭제됨 -> 갤러리 선택 가능 -->
+                                            <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
                                         </label>
                                     </div>
                                 ` : `
@@ -466,7 +472,8 @@
                                             ${isMe && uploadData ? `
                                                 <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
                                                     영상 수정
-                                                    <input type="file" accept="video/*" capture="environment" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
+                                                    <!-- capture="environment" 삭제됨 -> 갤러리 선택 가능 -->
+                                                    <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
                                                 </label>
                                             ` : ''}
                                         </div>
@@ -491,7 +498,7 @@
                 </div>
             `).join('');
 
-            // ★ 해결책 2: 동적으로 생성된 비디오 태그들이 모바일 환경에서도 확실하게 자동 재생되도록 강제 트리거
+            // 동적으로 생성된 비디오 태그들이 모바일 환경에서도 확실하게 자동 재생되도록 강제 트리거
             setTimeout(() => {
                 const videos = document.querySelectorAll('#main-scroll video');
                 videos.forEach(vid => {
