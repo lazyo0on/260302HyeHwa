@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>현체로그 - 우리들의 체험학습 기록</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 블랙 노이즈(치직거리는 TV 효과) 애니메이션 */
+        @keyframes tv-noise {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-5%, -5%); }
+            20% { transform: translate(-10%, 5%); }
+            30% { transform: translate(5%, -10%); }
+            40% { transform: translate(-5%, 15%); }
+            50% { transform: translate(-10%, 5%); }
+            60% { transform: translate(15%, 0); }
+            70% { transform: translate(0, 10%); }
+            80% { transform: translate(-15%, 0); }
+            90% { transform: translate(10%, 5%); }
+        }
+        .noise-bg {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            background-color: #1a1a1a;
+            opacity: 0.15;
+            animation: tv-noise 0.2s infinite;
+            position: absolute;
+            top: -50%; left: -50%; right: -50%; bottom: -50%;
+            width: 200%; height: 200%;
+            z-index: 0;
+        }
+        /* 스크롤바 숨기기 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 부드러운 스크롤 */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="bg-gray-900 font-sans text-gray-800">
+
+    <!-- 로딩 스크린 -->
+    <div id="loading-screen" class="absolute inset-0 z-[60] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse">데이터를 불러오는 중입니다...</p>
+    </div>
+
+    <!-- 로그인 스크린 -->
+    <div id="login-screen" class="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center p-6 text-white transition-opacity duration-500">
+        <div class="w-full max-w-xs text-center">
+            <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-lg">현체로그</h1>
+            <p class="text-gray-400 text-sm mb-10">우리 조의 체험학습 기록장</p>
+            
+            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-4 rounded-2xl mb-3 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
+            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-4 rounded-2xl mb-6 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
+            
+            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-gray-900 font-black text-lg py-4 rounded-2xl shadow-[0_4px_14px_0_rgba(250,204,21,0.39)] hover:scale-[1.02] active:scale-[0.98] transition-transform">
+                시작하기
+            </button>
+            <p id="login-error" class="text-pink-400 text-sm mt-4 hidden font-medium bg-pink-400/10 py-2 rounded-lg">학번이나 비밀번호를 확인해주세요.</p>
+        </div>
+    </div>
+
+    <!-- 메인 앱 화면 -->
+    <div id="main-app" class="flex justify-center items-center h-screen hidden opacity-0 transition-opacity duration-500">
+        <div class="relative w-full max-w-[430px] h-full sm:h-[90vh] sm:rounded-[40px] bg-white overflow-hidden shadow-2xl flex flex-col sm:border-[8px] border-yellow-300 border-opacity-80">
+            
+            <!-- 상단 헤더 -->
+            <header class="flex items-center justify-between px-5 py-4 z-20 bg-white">
+                <div class="relative flex items-center">
+                    <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative">
+                        <!-- JS로 채워짐 -->
+                    </select>
+                    <div class="pointer-events-none absolute right-0 flex items-center text-gray-800 z-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5" id="dots-container">
+                    <!-- JS로 생성 -->
+                </div>
+                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">
+                    --:--
+                </div>
+            </header>
+
+            <!-- 메인 콘텐츠 -->
+            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-white relative">
+                <!-- JS로 생성 -->
+            </main>
+            
+            <div class="h-6 bg-white w-full"></div>
+        </div>
+    </div>
+
+    <script>
+        // ★ 선생님이 주신 웹 앱 URL 연동 완료!
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
+        
+        let MOCK_SHEET_DATA = { users: [], missions: [] };
+        let UPLOADS = {};
+        let currentUser = null;
+        let currentGroupMembers = [];
+        let groupMissions = [];
+
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        const mainScroll = document.getElementById('main-scroll');
+        const dotsContainer = document.getElementById('dots-container');
+        const groupSelect = document.getElementById('group-select');
+        const currentTimeDisplay = document.getElementById('current-time-display');
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingText = document.getElementById('loading-text');
+
+        // --- 1. [데이터 로드] ---
+        async function fetchInitialData() {
+            try {
+                // 캐시 방지를 위해 랜덤 쿼리 추가
+                const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
+                const data = await response.json();
+                
+                MOCK_SHEET_DATA.users = data.users || [];
+                MOCK_SHEET_DATA.missions = data.missions || [];
+                UPLOADS = data.uploads || {};
+                
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+            } catch (error) {
+                alert("데이터를 불러오는데 실패했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.");
+                console.error(error);
+                loadingText.innerText = "연결 오류 발생";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', fetchInitialData);
+
+        // --- 2. [로그인 로직] ---
+        window.handleLogin = function() {
+            // trim()으로 실수로 들어간 공백 제거
+            const idInput = document.getElementById('login-id').value.trim();
+            const pwInput = document.getElementById('login-pw').value.trim();
+            const errorMsg = document.getElementById('login-error');
+
+            const user = MOCK_SHEET_DATA.users.find(u => u.id === idInput && u.pw === pwInput);
+
+            if (user) {
+                currentUser = user;
+                currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === user.group);
+                groupMissions = MOCK_SHEET_DATA.missions.filter(m => m.group === user.group);
+
+                populateGroupDropdown();
+
+                errorMsg.classList.add('hidden');
+                loginScreen.classList.add('opacity-0');
+                
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
+                    renderApp(); 
+                }, 500);
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        window.previewFileName = function(input, elementId) {
+            const displaySpan = document.getElementById(`filename-${elementId}`);
+            if (input.files && input.files.length > 0) {
+                displaySpan.innerText = input.files[0].name;
+            } else {
+                displaySpan.innerText = '';
+            }
+        }
+
+        // --- 3. [영상 업로드 로직] ---
+        window.handleVideoUpload = async function(time, studentId) {
+            // 시간 문자에 : 가 있으면 id 선택 시 에러가 날 수 있어 이스케이프 처리
+            const safeTime = time.replace(/:/g, '\\:');
+            const fileInput = document.getElementById(`file-${safeTime}-${studentId}`);
+            const textInput = document.getElementById(`text-${safeTime}-${studentId}`);
+            
+            if (fileInput.files.length === 0) {
+                alert('영상을 먼저 선택해주세요!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            // 15MB 제한 안내 (앱스스크립트 한계 보완)
+            if (file.size > 15 * 1024 * 1024) {
+                alert('영상 용량이 너무 큽니다! (15MB 이하로 2~3초만 짧게 찍어주세요)');
+                return;
+            }
+
+            const text = textInput.value;
+
+            loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
+            loadingScreen.classList.remove('hidden');
+            setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async function() {
+                const base64Data = reader.result.split(',')[1];
+                const extension = file.name.split('.').pop();
+                
+                const payload = {
+                    studentId: studentId,
+                    time: time,
+                    text: text,
+                    videoBase64: base64Data,
+                    mimeType: file.type,
+                    extension: extension
+                };
+
+                try {
+                    // CORS 에러 방지를 위해 Content-Type을 text/plain으로 강제 설정
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        redirect: "follow",
+                        headers: {
+                            "Content-Type": "text/plain;charset=utf-8",
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if(result.success) {
+                        if (!UPLOADS[time]) UPLOADS[time] = {};
+                        UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: text };
+                        renderApp(); 
+                    } else {
+                        alert("업로드 실패: " + result.error);
+                    }
+                } catch (error) {
+                    alert("서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)");
+                    console.error(error);
+                } finally {
+                    loadingScreen.classList.add('opacity-0');
+                    setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                }
+            };
+        }
+
+        // --- 4. [화면 렌더링 함수] ---
+        function populateGroupDropdown() {
+            const uniqueGroups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
+            groupSelect.innerHTML = uniqueGroups.map(g => `<option value="${g}">${g}</option>`).join('');
+            groupSelect.value = currentUser.group; 
+        }
+
+        window.handleGroupChange = function(groupName) {
+            currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === groupName);
+            groupMissions = MOCK_SHEET_DATA.missions.filter(m => m.group === groupName);
+            renderApp();
+            
+            if (groupMissions.length > 0) {
+                setTimeout(() => scrollToMission(0), 50);
+            }
+        }
+
+        function renderApp() {
+            if(groupMissions.length === 0) {
+                mainScroll.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-400 font-bold">배정된 미션이 없습니다.</div>`;
+                return;
+            }
+
+            dotsContainer.innerHTML = groupMissions.map((_, idx) => `
+                <button onclick="scrollToMission(${idx})" 
+                        class="dot-btn transition-all duration-300 flex items-center justify-center ${idx === 0 ? 'text-yellow-400 scale-125' : 'w-2 h-2 rounded-full bg-gray-200'}"
+                        data-index="${idx}">
+                    ${idx === 0 ? '🙂' : ''}
+                </button>
+            `).join('');
+
+            currentTimeDisplay.innerText = groupMissions[0].time;
+
+            mainScroll.innerHTML = groupMissions.map((mission, mIdx) => `
+                <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center relative">
+                    ${currentGroupMembers.map(member => {
+                        const isUploaded = UPLOADS[mission.time] && UPLOADS[mission.time][member.id];
+                        const uploadData = isUploaded ? UPLOADS[mission.time][member.id] : null;
+                        const isMe = member.id === currentUser.id;
+
+                        return `
+                        <div class="relative flex-1 rounded-[32px] overflow-hidden bg-black flex items-center justify-center shadow-sm">
+                            ${uploadData ? `
+                                <video src="${uploadData.videoUrl}" autoplay loop muted playsinline class="object-cover w-full h-full absolute inset-0 opacity-80"></video>
+                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0"></div>
+                            ` : `
+                                <div class="noise-bg"></div>
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0"></div>
+                                
+                                ${isMe ? `
+                                    <div class="absolute inset-0 z-20 flex flex-col items-center justify-center p-5 bg-black/30 backdrop-blur-sm">
+                                        <label class="bg-pink-500 text-white px-5 py-2.5 rounded-full font-bold shadow-lg mb-2 cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                                            영상 선택
+                                            <input type="file" accept="video/*" capture="environment" id="file-${mission.time}-${member.id}" class="hidden" onchange="previewFileName(this, '${mission.time}-${member.id}')">
+                                        </label>
+                                        <span id="filename-${mission.time}-${member.id}" class="text-white text-[10px] mb-3 truncate w-full text-center text-gray-300"></span>
+                                        <input type="text" id="text-${mission.time}-${member.id}" placeholder="한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/20 text-white placeholder-gray-300 px-3 py-2.5 rounded-xl text-xs mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center border border-white/10">
+                                        <button onclick="handleVideoUpload('${mission.time}', '${member.id}')" class="w-full bg-yellow-400 text-gray-900 font-black py-2.5 rounded-xl shadow-md text-sm hover:scale-105 transition-transform">올리기</button>
+                                    </div>
+                                ` : `
+                                    <div class="absolute z-10 flex flex-col items-center opacity-30">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white mb-2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                                        <p class="text-white text-[10px] font-bold tracking-widest">WAITING</p>
+                                    </div>
+                                `}
+                            `}
+
+                            <div class="absolute inset-0 p-4 flex flex-col justify-between z-10 pointer-events-none">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full border border-white/50 flex items-center justify-center text-sm ${member.profile} shadow-md">${member.emoji}</div>
+                                        <div>
+                                            <span class="text-white font-bold text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
+                                                ${member.id} ${member.name}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span class="text-white font-semibold text-[10px] tracking-wider drop-shadow-md bg-black/30 px-2 py-0.5 rounded">${mission.date}</span>
+                                </div>
+
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-[90%]">
+                                    <h1 class="text-white font-black text-5xl tracking-tighter" style="text-shadow: 0 4px 12px rgba(0,0,0,0.8);">${mission.time}</h1>
+                                    ${uploadData && uploadData.text ? `
+                                        <p class="text-white font-bold text-xs mt-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20" style="text-shadow: 0 1px 3px rgba(0,0,0,0.8);">${uploadData.text}</p>
+                                    ` : ''}
+                                </div>
+
+                                <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 shadow-lg max-w-[60%] text-right truncate">
+                                    🎯 ${mission.topic}
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            `).join('');
+        }
+
+        // --- 5. [스크롤 조작 지원] ---
+        function updateActiveDot(activeIndex) {
+            if(!groupMissions[activeIndex]) return;
+            const dots = document.querySelectorAll('.dot-btn');
+            dots.forEach((dot, idx) => {
+                if (idx === activeIndex) {
+                    dot.className = "dot-btn transition-all duration-300 flex items-center justify-center text-yellow-400 scale-125";
+                    dot.innerHTML = "🙂";
+                } else {
+                    dot.className = "dot-btn transition-all duration-300 flex items-center justify-center w-2 h-2 rounded-full bg-gray-200";
+                    dot.innerHTML = "";
+                }
+            });
+            currentTimeDisplay.innerText = groupMissions[activeIndex].time;
+        }
+
+        window.scrollToMission = function(index) {
+            const width = mainScroll.clientWidth;
+            mainScroll.scrollTo({ left: width * index, behavior: 'smooth' });
+        };
+
+        mainScroll.addEventListener('scroll', () => {
+            const scrollX = mainScroll.scrollLeft;
+            const width = mainScroll.clientWidth;
+            const activeIndex = Math.round(scrollX / width);
+            updateActiveDot(activeIndex);
+        });
+
+        let isDown = false, startX, scrollLeft;
+        mainScroll.addEventListener('mousedown', (e) => {
+            isDown = true;
+            mainScroll.classList.remove('snap-mandatory'); 
+            startX = e.pageX - mainScroll.offsetLeft;
+            scrollLeft = mainScroll.scrollLeft;
+        });
+        mainScroll.addEventListener('mouseleave', () => { isDown = false; mainScroll.classList.add('snap-mandatory'); });
+        mainScroll.addEventListener('mouseup', () => {
+            isDown = false; mainScroll.classList.add('snap-mandatory');
+            const width = mainScroll.clientWidth;
+            scrollToMission(Math.round(mainScroll.scrollLeft / width));
+        });
+        mainScroll.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - mainScroll.offsetLeft;
+            mainScroll.scrollLeft = scrollLeft - (x - startX) * 2; 
+        });
+    </script>
+</body>
+</html>
