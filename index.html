@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>현체로그 - 우리들의 체험학습 기록</title>
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 블랙 노이즈 애니메이션 */
         @keyframes tv-noise {
             0%, 100% { transform: translate(0, 0); }
             10% { transform: translate(-5%, -5%); }
@@ -30,12 +28,9 @@
             width: 200%; height: 200%;
             z-index: 0;
         }
-        /* 스크롤바 숨기기 */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
-        
-        /* 영상 드래그 방지 (기본 브라우저 동작 막기) */
         video { user-drag: none; -webkit-user-drag: none; }
     </style>
 </head>
@@ -72,7 +67,6 @@
             <h2 class="text-white font-bold text-lg mb-2">영상의 보여질 부분을 드래그하세요</h2>
             <p class="text-gray-400 text-xs mb-4">터치하여 원하는 위치로 화면을 옮길 수 있습니다.</p>
             
-            <!-- 드래그 뷰포트 -->
             <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 cursor-move touch-none">
                 <video id="preview-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover pointer-events-none" style="object-position: 50% 50%;"></video>
             </div>
@@ -95,23 +89,17 @@
             <header class="flex items-center justify-between px-4 py-3 sm:py-4 z-20 bg-white shadow-sm shrink-0 h-[60px]">
                 <div class="relative flex items-center">
                     <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative">
-                        <!-- JS로 채워짐 -->
                     </select>
                     <div class="pointer-events-none absolute right-0 flex items-center text-gray-800 z-0">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5" id="dots-container">
-                    <!-- JS로 생성 -->
-                </div>
-                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">
-                    --:--
-                </div>
+                <div class="flex items-center gap-1.5" id="dots-container"></div>
+                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">--:--</div>
             </header>
 
             <!-- 메인 콘텐츠 -->
             <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative h-[calc(100%-60px-24px)]">
-                <!-- JS로 생성 -->
             </main>
             
             <div class="h-6 bg-white w-full shrink-0"></div>
@@ -119,8 +107,7 @@
     </div>
 
     <script>
-        // ★여기에 개인 계정(@gmail.com)으로 새로 배포한 웹 앱 URL을 넣어주세요!★
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
+        const GAS_WEB_APP_URL = '여기에_웹앱_URL을_붙여넣으세요';
         
         let MOCK_SHEET_DATA = { users: [], missions: [] };
         let UPLOADS = {};
@@ -128,9 +115,8 @@
         let currentGroupMembers = [];
         let groupMissions = [];
 
-        // 업로드 시 필요한 임시 상태 저장
         let pendingUploadData = { file: null, time: null, studentId: null };
-        let currentObjPos = { x: 50, y: 50 }; // 초기 정중앙
+        let currentObjPos = { x: 50, y: 50 };
 
         const loginScreen = document.getElementById('login-screen');
         const mainApp = document.getElementById('main-app');
@@ -145,50 +131,55 @@
         const previewViewport = document.getElementById('preview-viewport');
         const previewText = document.getElementById('preview-text');
 
-        // --- 1. [데이터 로드] ---
+        // --- 1. 데이터 로드 ---
         async function fetchInitialData() {
-            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요') {
-                alert("코드 상단에 새 구글 웹 앱 URL을 먼저 입력해주세요!");
-                loadingScreen.classList.add('hidden');
+            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요' || GAS_WEB_APP_URL === '') {
+                alert("코드(index.html) 상단에 구글 웹 앱 URL을 먼저 입력해주세요!");
+                loadingText.innerText = "URL 설정 필요";
                 return;
             }
 
             try {
                 const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
+                if (!response.ok) throw new Error("서버 응답 오류 (권한 설정 확인)");
+                
                 const data = await response.json();
                 
                 MOCK_SHEET_DATA.users = data.users || [];
                 MOCK_SHEET_DATA.missions = data.missions || [];
                 UPLOADS = data.uploads || {};
 
+                // ★ [수정 1] 미션을 시간순으로 정렬 (시트에서 받은 순서 그대로 + 시간 오름차순 보장)
                 const uniqueMissionsMap = new Map();
                 MOCK_SHEET_DATA.missions.forEach(m => {
                     if(!uniqueMissionsMap.has(m.time)) {
                         uniqueMissionsMap.set(m.time, m);
                     }
                 });
-                groupMissions = Array.from(uniqueMissionsMap.values()).sort((a,b) => a.time.localeCompare(b.time));
+                // HH:MM 형식이므로 문자열 비교로 시간순 정렬 가능
+                groupMissions = Array.from(uniqueMissionsMap.values()).sort((a, b) => {
+                    return a.time.localeCompare(b.time);
+                });
                 
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
             } catch (error) {
-                alert("데이터를 불러오는데 실패했습니다. 인터넷 연결을 확인하고 새로고침 해주세요.");
+                alert("데이터를 불러오는데 실패했습니다.\n앱스 스크립트 배포 시 [액세스할 수 있는 사용자]가 [모든 사용자]로 되어 있는지 확인해주세요!");
                 console.error(error);
-                loadingText.innerText = "연결 오류 발생";
+                loadingText.innerText = "연결 오류: 배포 설정을 확인하세요.";
             }
         }
 
         window.addEventListener('DOMContentLoaded', fetchInitialData);
 
-        // --- 2. [로그인 및 초기 스크롤 로직] ---
+        // --- 2. 현재 시간 기준 초기 미션 인덱스 계산 ---
         function getInitialMissionIndex() {
             if(groupMissions.length === 0) return 0;
             
             const now = new Date();
-            const currentHours = now.getHours().toString().padStart(2, '0');
-            const currentMinutes = now.getMinutes().toString().padStart(2, '0');
-            const currentTimeStr = `${currentHours}:${currentMinutes}`;
+            const currentTimeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
+            // ★ [수정 3] 현재 시간 이하인 미션 중 가장 마지막 것을 찾음
             let targetIdx = 0;
             for(let i = 0; i < groupMissions.length; i++) {
                 if(groupMissions[i].time <= currentTimeStr) {
@@ -196,6 +187,7 @@
                 }
             }
             
+            // 해당 미션에 내 영상이 이미 있으면 다음 미션으로 이동
             const targetMission = groupMissions[targetIdx];
             if(UPLOADS[targetMission.time] && UPLOADS[targetMission.time][currentUser.id]) {
                 if(targetIdx + 1 < groupMissions.length) {
@@ -205,6 +197,7 @@
             return targetIdx;
         }
 
+        // --- 3. 로그인 처리 ---
         window.handleLogin = function() {
             const idInput = document.getElementById('login-id').value.trim();
             const pwInput = document.getElementById('login-pw').value.trim();
@@ -237,7 +230,7 @@
             }
         }
 
-        // --- 3. [영상 미리보기 및 드래그(위치 조정) 로직] ---
+        // --- 4. 영상 미리보기 모달 ---
         window.openPreviewModal = function(inputElement, time, studentId) {
             if (!inputElement.files || inputElement.files.length === 0) return;
             const file = inputElement.files[0];
@@ -287,45 +280,31 @@
             lastClientX = e.touches ? e.touches[0].clientX : e.clientX;
             lastClientY = e.touches ? e.touches[0].clientY : e.clientY;
         }
-
         function handleDragMove(e) {
             if (!isDraggingPreview) return;
-            e.preventDefault(); 
-            
+            e.preventDefault();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
             const deltaX = clientX - lastClientX;
             const deltaY = clientY - lastClientY;
-            
-            const percentMoveX = (deltaX / previewViewport.clientWidth) * 100;
-            const percentMoveY = (deltaY / previewViewport.clientHeight) * 100;
-            
-            currentObjPos.x -= percentMoveX;
-            currentObjPos.y -= percentMoveY;
-            
+            currentObjPos.x -= (deltaX / previewViewport.clientWidth) * 100;
+            currentObjPos.y -= (deltaY / previewViewport.clientHeight) * 100;
             currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x));
             currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y));
-            
             previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
-            
             lastClientX = clientX;
             lastClientY = clientY;
         }
-
-        function handleDragEnd() {
-            isDraggingPreview = false;
-        }
+        function handleDragEnd() { isDraggingPreview = false; }
 
         previewViewport.addEventListener('mousedown', handleDragStart);
         previewViewport.addEventListener('mousemove', handleDragMove);
         window.addEventListener('mouseup', handleDragEnd);
-
         previewViewport.addEventListener('touchstart', handleDragStart, {passive: false});
         previewViewport.addEventListener('touchmove', handleDragMove, {passive: false});
         window.addEventListener('touchend', handleDragEnd);
 
-        // --- 4. [영상 실제 업로드 로직] ---
+        // --- 5. 영상 업로드 처리 ---
         window.confirmUpload = async function() {
             const { file, time, studentId } = pendingUploadData;
             if (!file) return;
@@ -340,8 +319,6 @@
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
 
-            const localVideoUrl = URL.createObjectURL(file); 
-
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async function() {
@@ -351,7 +328,7 @@
                 const payload = {
                     studentId: studentId,
                     time: time,
-                    text: finalPayloadText, 
+                    text: finalPayloadText,
                     videoBase64: base64Data,
                     mimeType: file.type,
                     extension: extension
@@ -368,9 +345,14 @@
                     const result = await response.json();
                     
                     if(result.success) {
+                        // ★ [수정 2] 로컬 임시 URL 대신 서버에서 받아온 Drive URL을 저장
+                        //    → 새로고침·다른 기기에서도 영상이 재생됨
                         if (!UPLOADS[time]) UPLOADS[time] = {};
-                        UPLOADS[time][studentId] = { videoUrl: localVideoUrl, text: finalPayloadText };
-                        renderApp(); 
+                        UPLOADS[time][studentId] = { 
+                            videoUrl: result.videoUrl,   // ← Drive URL 사용
+                            text: finalPayloadText 
+                        };
+                        renderApp();
                     } else {
                         alert("업로드 실패: " + result.error);
                     }
@@ -384,17 +366,16 @@
             };
         }
 
-        // --- 5. [화면 렌더링 함수] ---
+        // --- 6. 화면 렌더링 ---
         function populateGroupDropdown() {
             const uniqueGroups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
             groupSelect.innerHTML = uniqueGroups.map(g => `<option value="${g}">${g}</option>`).join('');
-            groupSelect.value = currentUser.group; 
+            groupSelect.value = currentUser.group;
         }
 
         window.handleGroupChange = function(groupName) {
             currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === groupName);
             renderApp();
-            
             if (groupMissions.length > 0) {
                 const idx = getInitialMissionIndex();
                 setTimeout(() => scrollToMission(idx), 50);
@@ -437,19 +418,16 @@
                         return `
                         <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <!-- preload="auto" 추가. 모바일 자동재생 환경을 위해 속성 강화 -->
                                 <video src="${uploadData.videoUrl}" autoplay loop muted playsinline preload="auto" class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
                                 <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0 pointer-events-none"></div>
                             ` : `
                                 <div class="noise-bg pointer-events-none"></div>
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0 pointer-events-none"></div>
-                                
                                 ${isMe ? `
                                     <div class="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 bg-black/30 backdrop-blur-sm">
                                         <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                                             영상 선택
-                                            <!-- capture="environment" 삭제됨 -> 갤러리 선택 가능 -->
                                             <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
                                         </label>
                                     </div>
@@ -472,7 +450,6 @@
                                             ${isMe && uploadData ? `
                                                 <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
                                                     영상 수정
-                                                    <!-- capture="environment" 삭제됨 -> 갤러리 선택 가능 -->
                                                     <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
                                                 </label>
                                             ` : ''}
@@ -498,7 +475,6 @@
                 </div>
             `).join('');
 
-            // 동적으로 생성된 비디오 태그들이 모바일 환경에서도 확실하게 자동 재생되도록 강제 트리거
             setTimeout(() => {
                 const videos = document.querySelectorAll('#main-scroll video');
                 videos.forEach(vid => {
@@ -512,11 +488,10 @@
             }, 100);
         }
 
-        // --- 6. [스크롤 조작 지원] ---
+        // --- 7. 스크롤 및 dot 조작 ---
         function updateActiveDot(activeIndex) {
             if(!groupMissions[activeIndex]) return;
-            const dots = document.querySelectorAll('.dot-btn');
-            dots.forEach((dot, idx) => {
+            document.querySelectorAll('.dot-btn').forEach((dot, idx) => {
                 if (idx === activeIndex) {
                     dot.className = "dot-btn transition-all duration-300 flex items-center justify-center text-yellow-400 scale-125";
                     dot.innerHTML = "🙂";
@@ -525,6 +500,7 @@
                     dot.innerHTML = "";
                 }
             });
+            // ★ [수정 3] 스크롤 위치에 따라 헤더 시간 표시를 현재 보고 있는 미션 시간으로 업데이트
             currentTimeDisplay.innerText = groupMissions[activeIndex].time;
         }
 
@@ -534,30 +510,27 @@
         };
 
         mainScroll.addEventListener('scroll', () => {
-            const scrollX = mainScroll.scrollLeft;
-            const width = mainScroll.clientWidth;
-            const activeIndex = Math.round(scrollX / width);
+            const activeIndex = Math.round(mainScroll.scrollLeft / mainScroll.clientWidth);
             updateActiveDot(activeIndex);
         });
 
         let isDown = false, startX, scrollLeft;
         mainScroll.addEventListener('mousedown', (e) => {
             isDown = true;
-            mainScroll.classList.remove('snap-mandatory'); 
+            mainScroll.classList.remove('snap-mandatory');
             startX = e.pageX - mainScroll.offsetLeft;
             scrollLeft = mainScroll.scrollLeft;
         });
         mainScroll.addEventListener('mouseleave', () => { isDown = false; mainScroll.classList.add('snap-mandatory'); });
         mainScroll.addEventListener('mouseup', () => {
-            isDown = false; mainScroll.classList.add('snap-mandatory');
-            const width = mainScroll.clientWidth;
-            scrollToMission(Math.round(mainScroll.scrollLeft / width));
+            isDown = false;
+            mainScroll.classList.add('snap-mandatory');
+            scrollToMission(Math.round(mainScroll.scrollLeft / mainScroll.clientWidth));
         });
         mainScroll.addEventListener('mousemove', (e) => {
             if (!isDown) return;
             e.preventDefault();
-            const x = e.pageX - mainScroll.offsetLeft;
-            mainScroll.scrollLeft = scrollLeft - (x - startX) * 2; 
+            mainScroll.scrollLeft = scrollLeft - (e.pageX - mainScroll.offsetLeft - startX) * 2;
         });
     </script>
 </body>
