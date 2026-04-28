@@ -7,7 +7,7 @@
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 블랙 노이즈(치직거리는 TV 효과) 애니메이션 */
+        /* 블랙 노이즈 애니메이션 */
         @keyframes tv-noise {
             0%, 100% { transform: translate(0, 0); }
             10% { transform: translate(-5%, -5%); }
@@ -31,21 +31,18 @@
             z-index: 0;
         }
         /* 스크롤바 숨기기 */
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        /* 부드러운 스크롤 */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
+        
+        /* 영상 드래그 방지 (기본 브라우저 동작 막기) */
+        video { user-drag: none; -webkit-user-drag: none; }
     </style>
 </head>
-<body class="bg-gray-900 font-sans text-gray-800">
+<body class="bg-gray-900 font-sans text-gray-800 h-screen overflow-hidden">
 
     <!-- 로딩 스크린 -->
-    <div id="loading-screen" class="absolute inset-0 z-[60] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
+    <div id="loading-screen" class="absolute inset-0 z-[70] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
         <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -54,7 +51,7 @@
     </div>
 
     <!-- 로그인 스크린 -->
-    <div id="login-screen" class="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center p-6 text-white transition-opacity duration-500">
+    <div id="login-screen" class="absolute inset-0 z-[60] bg-gray-900 flex flex-col items-center justify-center p-6 text-white transition-opacity duration-500">
         <div class="w-full max-w-xs text-center">
             <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-lg">현체로그</h1>
             <p class="text-gray-400 text-sm mb-10">우리 조의 체험학습 기록장</p>
@@ -69,12 +66,33 @@
         </div>
     </div>
 
+    <!-- 영상 위치 조정(크롭) 및 업로드 모달 -->
+    <div id="preview-modal" class="absolute inset-0 z-[65] bg-gray-900/95 flex flex-col items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="w-full max-w-[400px] flex flex-col items-center">
+            <h2 class="text-white font-bold text-lg mb-2">영상의 보여질 부분을 드래그하세요</h2>
+            <p class="text-gray-400 text-xs mb-4">터치하여 원하는 위치로 화면을 옮길 수 있습니다.</p>
+            
+            <!-- 드래그 뷰포트 (자바스크립트에서 높이를 동적으로 설정) -->
+            <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 cursor-move touch-none">
+                <video id="preview-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover pointer-events-none" style="object-position: 50% 50%;"></video>
+            </div>
+            
+            <div class="w-full mt-6 flex flex-col gap-3">
+                <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/10 text-white placeholder-gray-400 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center border border-white/20">
+                <div class="flex gap-2">
+                    <button onclick="closePreviewModal()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-600 transition-colors">취소</button>
+                    <button onclick="confirmUpload()" class="flex-1 bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl shadow-md hover:scale-[1.02] transition-transform">위치 고정하고 올리기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 메인 앱 화면 -->
     <div id="main-app" class="flex justify-center items-center h-screen hidden opacity-0 transition-opacity duration-500">
         <div class="relative w-full max-w-[430px] h-full sm:h-[90vh] sm:rounded-[40px] bg-white overflow-hidden shadow-2xl flex flex-col sm:border-[8px] border-yellow-300 border-opacity-80">
             
             <!-- 상단 헤더 -->
-            <header class="flex items-center justify-between px-5 py-4 z-20 bg-white shadow-sm">
+            <header class="flex items-center justify-between px-4 py-3 sm:py-4 z-20 bg-white shadow-sm shrink-0 h-[60px]">
                 <div class="relative flex items-center">
                     <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative">
                         <!-- JS로 채워짐 -->
@@ -92,16 +110,15 @@
             </header>
 
             <!-- 메인 콘텐츠 -->
-            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative">
+            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative h-[calc(100%-60px-24px)]">
                 <!-- JS로 생성 -->
             </main>
             
-            <div class="h-6 bg-white w-full"></div>
+            <div class="h-6 bg-white w-full shrink-0"></div>
         </div>
     </div>
 
     <script>
-        // ★ 선생님이 주신 웹 앱 URL 연동
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
         
         let MOCK_SHEET_DATA = { users: [], missions: [] };
@@ -109,6 +126,10 @@
         let currentUser = null;
         let currentGroupMembers = [];
         let groupMissions = [];
+
+        // 업로드 시 필요한 임시 상태 저장
+        let pendingUploadData = { file: null, time: null, studentId: null };
+        let currentObjPos = { x: 50, y: 50 }; // 초기 정중앙
 
         const loginScreen = document.getElementById('login-screen');
         const mainApp = document.getElementById('main-app');
@@ -118,11 +139,14 @@
         const currentTimeDisplay = document.getElementById('current-time-display');
         const loadingScreen = document.getElementById('loading-screen');
         const loadingText = document.getElementById('loading-text');
+        const previewModal = document.getElementById('preview-modal');
+        const previewVideo = document.getElementById('preview-video');
+        const previewViewport = document.getElementById('preview-viewport');
+        const previewText = document.getElementById('preview-text');
 
         // --- 1. [데이터 로드] ---
         async function fetchInitialData() {
             try {
-                // 캐시 방지를 위해 랜덤 쿼리 추가
                 const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
                 const data = await response.json();
                 
@@ -130,7 +154,7 @@
                 MOCK_SHEET_DATA.missions = data.missions || [];
                 UPLOADS = data.uploads || {};
 
-                // 모든 학생이 동일한 미션을 갖도록 중복 제거 후 시간순 정렬 적용
+                // 미션 중복 제거 및 시간순 정렬
                 const uniqueMissionsMap = new Map();
                 MOCK_SHEET_DATA.missions.forEach(m => {
                     if(!uniqueMissionsMap.has(m.time)) {
@@ -150,9 +174,34 @@
 
         window.addEventListener('DOMContentLoaded', fetchInitialData);
 
-        // --- 2. [로그인 로직] ---
+        // --- 2. [로그인 및 초기 스크롤 로직] ---
+        function getInitialMissionIndex() {
+            if(groupMissions.length === 0) return 0;
+            
+            const now = new Date();
+            const currentHours = now.getHours().toString().padStart(2, '0');
+            const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+            const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+            let targetIdx = 0;
+            // 가장 가까운 과거 또는 현재 미션 인덱스 찾기
+            for(let i = 0; i < groupMissions.length; i++) {
+                if(groupMissions[i].time <= currentTimeStr) {
+                    targetIdx = i;
+                }
+            }
+            
+            // 만약 해당 미션을 이미 업로드했다면, 다음 미션으로 넘어감 (존재할 경우)
+            const targetMission = groupMissions[targetIdx];
+            if(UPLOADS[targetMission.time] && UPLOADS[targetMission.time][currentUser.id]) {
+                if(targetIdx + 1 < groupMissions.length) {
+                    targetIdx++;
+                }
+            }
+            return targetIdx;
+        }
+
         window.handleLogin = function() {
-            // trim()으로 실수로 들어간 공백 제거
             const idInput = document.getElementById('login-id').value.trim();
             const pwInput = document.getElementById('login-pw').value.trim();
             const errorMsg = document.getElementById('login-error');
@@ -164,7 +213,6 @@
                 currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === user.group);
 
                 populateGroupDropdown();
-
                 errorMsg.classList.add('hidden');
                 loginScreen.classList.add('opacity-0');
                 
@@ -172,41 +220,129 @@
                     loginScreen.classList.add('hidden');
                     mainApp.classList.remove('hidden');
                     setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
-                    renderApp(); 
+                    renderApp();
+                    
+                    // 초기 미션 타임라인 점프 적용
+                    const initialIdx = getInitialMissionIndex();
+                    setTimeout(() => {
+                        scrollToMission(initialIdx);
+                        updateActiveDot(initialIdx);
+                    }, 100);
                 }, 500);
             } else {
                 errorMsg.classList.remove('hidden');
             }
         }
 
-        window.previewFileName = function(input, elementId) {
-            const displaySpan = document.getElementById(`filename-${elementId}`);
-            if (input.files && input.files.length > 0) {
-                displaySpan.innerText = input.files[0].name;
-            } else {
-                displaySpan.innerText = '';
-            }
-        }
-
-        // --- 3. [영상 업로드 로직] ---
-        window.handleVideoUpload = async function(time, studentId) {
-            // DOM ID 탐색을 위해 그대로 사용 (escape 불필요)
-            const fileInput = document.getElementById(`file-${time}-${studentId}`);
-            const textInput = document.getElementById(`text-${time}-${studentId}`);
+        // --- 3. [영상 미리보기 및 드래그(위치 조정) 로직] ---
+        window.openPreviewModal = function(inputElement, time, studentId) {
+            if (!inputElement.files || inputElement.files.length === 0) return;
+            const file = inputElement.files[0];
             
-            if (!fileInput || fileInput.files.length === 0) {
-                alert('영상을 먼저 선택해주세요!');
-                return;
-            }
-
-            const file = fileInput.files[0];
-            // 15MB 제한 안내 (앱스스크립트 한계 보완)
             if (file.size > 15 * 1024 * 1024) {
                 alert('영상 용량이 너무 큽니다! (15MB 이하로 2~3초만 짧게 찍어주세요)');
+                inputElement.value = ''; // 초기화
                 return;
             }
 
-            const text = textInput ? textInput.value : '';
+            // 모달 상태 초기화
+            pendingUploadData = { file, time, studentId };
+            currentObjPos = { x: 50, y: 50 };
+            previewVideo.style.objectPosition = '50% 50%';
+            
+            // 기존 텍스트 불러오기 (수정일 경우)
+            const uploadData = UPLOADS[time] && UPLOADS[time][studentId];
+            if(uploadData && uploadData.text) {
+                const parts = uploadData.text.split('||POS:');
+                previewText.value = parts[0];
+            } else {
+                previewText.value = '';
+            }
+
+            // 비디오 URL 세팅 및 재생
+            const videoUrl = URL.createObjectURL(file);
+            previewVideo.src = videoUrl;
+
+            // 뷰포트 높이를 메인 슬롯 1개 높이와 비슷하게 맞춤
+            const viewportHeight = Math.max(120, mainScroll.clientHeight / currentGroupMembers.length);
+            previewViewport.style.height = `${viewportHeight}px`;
+
+            // 모달 열기
+            previewModal.classList.remove('hidden');
+            setTimeout(() => previewModal.classList.remove('opacity-0'), 10);
+        }
+
+        window.closePreviewModal = function() {
+            previewModal.classList.add('opacity-0');
+            setTimeout(() => {
+                previewModal.classList.add('hidden');
+                previewVideo.src = '';
+                pendingUploadData = { file: null, time: null, studentId: null };
+            }, 300);
+        }
+
+        // 드래그 로직
+        let isDraggingPreview = false;
+        let lastClientX, lastClientY;
+
+        function handleDragStart(e) {
+            isDraggingPreview = true;
+            lastClientX = e.touches ? e.touches[0].clientX : e.clientX;
+            lastClientY = e.touches ? e.touches[0].clientY : e.clientY;
+        }
+
+        function handleDragMove(e) {
+            if (!isDraggingPreview) return;
+            e.preventDefault(); // 화면 스크롤 방지
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const deltaX = clientX - lastClientX;
+            const deltaY = clientY - lastClientY;
+            
+            // 이동 비율을 퍼센트로 변환 (민감도 조절)
+            const percentMoveX = (deltaX / previewViewport.clientWidth) * 100;
+            const percentMoveY = (deltaY / previewViewport.clientHeight) * 100;
+            
+            // 반대 방향으로 object-position 이동해야 자연스러움
+            currentObjPos.x -= percentMoveX;
+            currentObjPos.y -= percentMoveY;
+            
+            // 0 ~ 100% 사이로 제한
+            currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x));
+            currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y));
+            
+            previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
+            
+            lastClientX = clientX;
+            lastClientY = clientY;
+        }
+
+        function handleDragEnd() {
+            isDraggingPreview = false;
+        }
+
+        previewViewport.addEventListener('mousedown', handleDragStart);
+        previewViewport.addEventListener('mousemove', handleDragMove);
+        window.addEventListener('mouseup', handleDragEnd);
+
+        previewViewport.addEventListener('touchstart', handleDragStart, {passive: false});
+        previewViewport.addEventListener('touchmove', handleDragMove, {passive: false});
+        window.addEventListener('touchend', handleDragEnd);
+
+        // --- 4. [영상 실제 업로드 로직] ---
+        window.confirmUpload = async function() {
+            const { file, time, studentId } = pendingUploadData;
+            if (!file) return;
+
+            // 텍스트 뒤에 보이지 않게 위치 좌표(포지션) 숨겨서 저장
+            const textBase = previewText.value.trim();
+            const finalPayloadText = `${textBase}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
+
+            // 모달 닫고 로딩 표시
+            previewModal.classList.add('opacity-0');
+            setTimeout(() => previewModal.classList.add('hidden'), 300);
 
             loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
             loadingScreen.classList.remove('hidden');
@@ -221,20 +357,17 @@
                 const payload = {
                     studentId: studentId,
                     time: time,
-                    text: text,
+                    text: finalPayloadText, 
                     videoBase64: base64Data,
                     mimeType: file.type,
                     extension: extension
                 };
 
                 try {
-                    // CORS 에러 방지를 위해 Content-Type을 text/plain으로 강제 설정
                     const response = await fetch(GAS_WEB_APP_URL, {
                         method: 'POST',
                         redirect: "follow",
-                        headers: {
-                            "Content-Type": "text/plain;charset=utf-8",
-                        },
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
                         body: JSON.stringify(payload)
                     });
                     
@@ -242,7 +375,7 @@
                     
                     if(result.success) {
                         if (!UPLOADS[time]) UPLOADS[time] = {};
-                        UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: text };
+                        UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: finalPayloadText };
                         renderApp(); 
                     } else {
                         alert("업로드 실패: " + result.error);
@@ -257,7 +390,7 @@
             };
         }
 
-        // --- 4. [화면 렌더링 함수] ---
+        // --- 5. [화면 렌더링 함수] ---
         function populateGroupDropdown() {
             const uniqueGroups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
             groupSelect.innerHTML = uniqueGroups.map(g => `<option value="${g}">${g}</option>`).join('');
@@ -269,7 +402,9 @@
             renderApp();
             
             if (groupMissions.length > 0) {
-                setTimeout(() => scrollToMission(0), 50);
+                // 다른 조로 변경 시 현재 시간에 맞는 뷰로 이동
+                const idx = getInitialMissionIndex();
+                setTimeout(() => scrollToMission(idx), 50);
             }
         }
 
@@ -290,60 +425,76 @@
             currentTimeDisplay.innerText = groupMissions[0].time;
 
             mainScroll.innerHTML = groupMissions.map((mission, mIdx) => `
-                <!-- 조원 수가 많아질 경우를 대비해 overflow-y-auto 적용 및 hide-scrollbar 추가 -->
-                <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center relative overflow-y-auto hide-scrollbar">
+                <!-- 한 화면에 꽉 차게: flex-col, h-full, p-2 -->
+                <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center relative">
                     ${currentGroupMembers.map(member => {
                         const isUploaded = UPLOADS[mission.time] && UPLOADS[mission.time][member.id];
                         const uploadData = isUploaded ? UPLOADS[mission.time][member.id] : null;
                         const isMe = member.id === currentUser.id;
 
+                        // 텍스트와 좌표 추출
+                        let displayStr = '';
+                        let objPos = '50% 50%';
+                        if(uploadData && uploadData.text) {
+                            const parts = uploadData.text.split('||POS:');
+                            displayStr = parts[0];
+                            if(parts[1]) {
+                                objPos = parts[1].replace(',', '% ') + '%';
+                            }
+                        }
+
                         return `
-                        <!-- min-h-[160px]와 shrink-0를 부여해 조원이 많아도 UI 칸이 찌그러지지 않고 유지되도록 보장 -->
-                        <div class="relative flex-1 min-h-[160px] shrink-0 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm">
+                        <!-- flex-1을 주어 조원 수에 따라 세로 길이가 유동적으로 변하게 함 (스크롤 X) -->
+                        <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <video src="${uploadData.videoUrl}" autoplay loop muted playsinline class="object-cover w-full h-full absolute inset-0 opacity-80"></video>
-                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0"></div>
+                                <!-- 저장된 objPos를 기반으로 영상 위치를 렌더링 -->
+                                <video src="${uploadData.videoUrl}" autoplay loop muted playsinline class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
+                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0 pointer-events-none"></div>
                             ` : `
-                                <div class="noise-bg"></div>
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0"></div>
+                                <div class="noise-bg pointer-events-none"></div>
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0 pointer-events-none"></div>
                                 
                                 ${isMe ? `
                                     <div class="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 bg-black/30 backdrop-blur-sm">
-                                        <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg mb-1.5 cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
+                                        <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                                             영상 선택
-                                            <input type="file" accept="video/*" capture="environment" id="file-${mission.time}-${member.id}" class="hidden" onchange="previewFileName(this, '${mission.time}-${member.id}')">
+                                            <input type="file" accept="video/*" capture="environment" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
                                         </label>
-                                        <span id="filename-${mission.time}-${member.id}" class="text-white text-[10px] mb-2 truncate w-full max-w-[80%] text-center text-gray-300"></span>
-                                        <input type="text" id="text-${mission.time}-${member.id}" placeholder="한 줄 남기기 (선택)" maxlength="20" class="w-full max-w-[80%] bg-white/20 text-white placeholder-gray-300 px-3 py-2 rounded-xl text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center border border-white/10">
-                                        <button onclick="handleVideoUpload('${mission.time}', '${member.id}')" class="w-full max-w-[80%] bg-yellow-400 text-gray-900 font-black py-2 rounded-xl shadow-md text-xs sm:text-sm hover:scale-105 transition-transform">올리기</button>
                                     </div>
                                 ` : `
-                                    <div class="absolute z-10 flex flex-col items-center opacity-30">
+                                    <div class="absolute z-10 flex flex-col items-center opacity-30 pointer-events-none">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white mb-2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                                         <p class="text-white text-[10px] font-bold tracking-widest">WAITING</p>
                                     </div>
                                 `}
                             `}
 
+                            <!-- 공통 오버레이 UI (pointer-events-none 적용 후, 필요한 버튼만 auto 적용) -->
                             <div class="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between z-10 pointer-events-none">
                                 <div class="flex justify-between items-start">
                                     <div class="flex items-center gap-1.5">
                                         <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/50 flex items-center justify-center text-xs sm:text-sm ${member.profile} shadow-md">${member.emoji}</div>
-                                        <div>
+                                        <div class="flex items-center gap-2">
                                             <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
                                                 ${member.id} ${member.name}
                                             </span>
+                                            <!-- 제출자 본인일 경우 '영상 수정하기' 버튼 노출 -->
+                                            ${isMe && uploadData ? `
+                                                <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
+                                                    영상 수정
+                                                    <input type="file" accept="video/*" capture="environment" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
+                                                </label>
+                                            ` : ''}
                                         </div>
                                     </div>
                                     <span class="text-white font-semibold text-[9px] sm:text-[10px] tracking-wider drop-shadow-md bg-black/30 px-2 py-0.5 rounded">${mission.date}</span>
                                 </div>
 
                                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-[90%]">
-                                    <!-- 작은 화면에서도 시간이 너무 커서 넘치지 않도록 text-3xl sm:text-5xl로 반응형 적용 -->
                                     <h1 class="text-white font-black text-3xl sm:text-5xl tracking-tighter" style="text-shadow: 0 4px 12px rgba(0,0,0,0.8);">${mission.time}</h1>
-                                    ${uploadData && uploadData.text ? `
-                                        <p class="text-white font-bold text-[10px] sm:text-xs mt-1 sm:mt-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20" style="text-shadow: 0 1px 3px rgba(0,0,0,0.8);">${uploadData.text}</p>
+                                    ${displayStr ? `
+                                        <p class="text-white font-bold text-[10px] sm:text-xs mt-1 sm:mt-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20" style="text-shadow: 0 1px 3px rgba(0,0,0,0.8);">${displayStr}</p>
                                     ` : ''}
                                 </div>
 
@@ -358,7 +509,7 @@
             `).join('');
         }
 
-        // --- 5. [스크롤 조작 지원] ---
+        // --- 6. [스크롤 조작 지원] ---
         function updateActiveDot(activeIndex) {
             if(!groupMissions[activeIndex]) return;
             const dots = document.querySelectorAll('.dot-btn');
