@@ -72,7 +72,7 @@
             <h2 class="text-white font-bold text-lg mb-2">영상의 보여질 부분을 드래그하세요</h2>
             <p class="text-gray-400 text-xs mb-4">터치하여 원하는 위치로 화면을 옮길 수 있습니다.</p>
             
-            <!-- 드래그 뷰포트 (자바스크립트에서 높이를 동적으로 설정) -->
+            <!-- 드래그 뷰포트 -->
             <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 cursor-move touch-none">
                 <video id="preview-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover pointer-events-none" style="object-position: 50% 50%;"></video>
             </div>
@@ -154,7 +154,6 @@
                 MOCK_SHEET_DATA.missions = data.missions || [];
                 UPLOADS = data.uploads || {};
 
-                // 미션 중복 제거 및 시간순 정렬
                 const uniqueMissionsMap = new Map();
                 MOCK_SHEET_DATA.missions.forEach(m => {
                     if(!uniqueMissionsMap.has(m.time)) {
@@ -184,14 +183,12 @@
             const currentTimeStr = `${currentHours}:${currentMinutes}`;
 
             let targetIdx = 0;
-            // 가장 가까운 과거 또는 현재 미션 인덱스 찾기
             for(let i = 0; i < groupMissions.length; i++) {
                 if(groupMissions[i].time <= currentTimeStr) {
                     targetIdx = i;
                 }
             }
             
-            // 만약 해당 미션을 이미 업로드했다면, 다음 미션으로 넘어감 (존재할 경우)
             const targetMission = groupMissions[targetIdx];
             if(UPLOADS[targetMission.time] && UPLOADS[targetMission.time][currentUser.id]) {
                 if(targetIdx + 1 < groupMissions.length) {
@@ -222,7 +219,6 @@
                     setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
                     renderApp();
                     
-                    // 초기 미션 타임라인 점프 적용
                     const initialIdx = getInitialMissionIndex();
                     setTimeout(() => {
                         scrollToMission(initialIdx);
@@ -241,16 +237,14 @@
             
             if (file.size > 15 * 1024 * 1024) {
                 alert('영상 용량이 너무 큽니다! (15MB 이하로 2~3초만 짧게 찍어주세요)');
-                inputElement.value = ''; // 초기화
+                inputElement.value = ''; 
                 return;
             }
 
-            // 모달 상태 초기화
             pendingUploadData = { file, time, studentId };
             currentObjPos = { x: 50, y: 50 };
             previewVideo.style.objectPosition = '50% 50%';
             
-            // 기존 텍스트 불러오기 (수정일 경우)
             const uploadData = UPLOADS[time] && UPLOADS[time][studentId];
             if(uploadData && uploadData.text) {
                 const parts = uploadData.text.split('||POS:');
@@ -259,15 +253,12 @@
                 previewText.value = '';
             }
 
-            // 비디오 URL 세팅 및 재생
             const videoUrl = URL.createObjectURL(file);
             previewVideo.src = videoUrl;
 
-            // 뷰포트 높이를 메인 슬롯 1개 높이와 비슷하게 맞춤
             const viewportHeight = Math.max(120, mainScroll.clientHeight / currentGroupMembers.length);
             previewViewport.style.height = `${viewportHeight}px`;
 
-            // 모달 열기
             previewModal.classList.remove('hidden');
             setTimeout(() => previewModal.classList.remove('opacity-0'), 10);
         }
@@ -281,7 +272,6 @@
             }, 300);
         }
 
-        // 드래그 로직
         let isDraggingPreview = false;
         let lastClientX, lastClientY;
 
@@ -293,7 +283,7 @@
 
         function handleDragMove(e) {
             if (!isDraggingPreview) return;
-            e.preventDefault(); // 화면 스크롤 방지
+            e.preventDefault(); 
             
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -301,15 +291,12 @@
             const deltaX = clientX - lastClientX;
             const deltaY = clientY - lastClientY;
             
-            // 이동 비율을 퍼센트로 변환 (민감도 조절)
             const percentMoveX = (deltaX / previewViewport.clientWidth) * 100;
             const percentMoveY = (deltaY / previewViewport.clientHeight) * 100;
             
-            // 반대 방향으로 object-position 이동해야 자연스러움
             currentObjPos.x -= percentMoveX;
             currentObjPos.y -= percentMoveY;
             
-            // 0 ~ 100% 사이로 제한
             currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x));
             currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y));
             
@@ -336,17 +323,18 @@
             const { file, time, studentId } = pendingUploadData;
             if (!file) return;
 
-            // 텍스트 뒤에 보이지 않게 위치 좌표(포지션) 숨겨서 저장
             const textBase = previewText.value.trim();
             const finalPayloadText = `${textBase}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
 
-            // 모달 닫고 로딩 표시
             previewModal.classList.add('opacity-0');
             setTimeout(() => previewModal.classList.add('hidden'), 300);
 
             loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
+
+            // ★ 해결책 1: 업로드 직후 즉각적이고 끊김없는 화면 구성을 위해 메모리의 로컬 URL을 생성합니다.
+            const localVideoUrl = URL.createObjectURL(file); 
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -375,7 +363,8 @@
                     
                     if(result.success) {
                         if (!UPLOADS[time]) UPLOADS[time] = {};
-                        UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: finalPayloadText };
+                        // 구글 드라이브 URL 대기 없이 즉각적으로 화면에 보여주기 위해 로컬 URL 적용
+                        UPLOADS[time][studentId] = { videoUrl: localVideoUrl, text: finalPayloadText };
                         renderApp(); 
                     } else {
                         alert("업로드 실패: " + result.error);
@@ -402,7 +391,6 @@
             renderApp();
             
             if (groupMissions.length > 0) {
-                // 다른 조로 변경 시 현재 시간에 맞는 뷰로 이동
                 const idx = getInitialMissionIndex();
                 setTimeout(() => scrollToMission(idx), 50);
             }
@@ -425,14 +413,12 @@
             currentTimeDisplay.innerText = groupMissions[0].time;
 
             mainScroll.innerHTML = groupMissions.map((mission, mIdx) => `
-                <!-- 한 화면에 꽉 차게: flex-col, h-full, p-2 -->
                 <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center relative">
                     ${currentGroupMembers.map(member => {
                         const isUploaded = UPLOADS[mission.time] && UPLOADS[mission.time][member.id];
                         const uploadData = isUploaded ? UPLOADS[mission.time][member.id] : null;
                         const isMe = member.id === currentUser.id;
 
-                        // 텍스트와 좌표 추출
                         let displayStr = '';
                         let objPos = '50% 50%';
                         if(uploadData && uploadData.text) {
@@ -444,11 +430,10 @@
                         }
 
                         return `
-                        <!-- flex-1을 주어 조원 수에 따라 세로 길이가 유동적으로 변하게 함 (스크롤 X) -->
                         <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <!-- 저장된 objPos를 기반으로 영상 위치를 렌더링 -->
-                                <video src="${uploadData.videoUrl}" autoplay loop muted playsinline class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
+                                <!-- preload="auto" 추가. 모바일 자동재생 환경을 위해 속성 강화 -->
+                                <video src="${uploadData.videoUrl}" autoplay loop muted playsinline preload="auto" class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
                                 <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0 pointer-events-none"></div>
                             ` : `
                                 <div class="noise-bg pointer-events-none"></div>
@@ -470,7 +455,6 @@
                                 `}
                             `}
 
-                            <!-- 공통 오버레이 UI (pointer-events-none 적용 후, 필요한 버튼만 auto 적용) -->
                             <div class="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between z-10 pointer-events-none">
                                 <div class="flex justify-between items-start">
                                     <div class="flex items-center gap-1.5">
@@ -479,7 +463,6 @@
                                             <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
                                                 ${member.id} ${member.name}
                                             </span>
-                                            <!-- 제출자 본인일 경우 '영상 수정하기' 버튼 노출 -->
                                             ${isMe && uploadData ? `
                                                 <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
                                                     영상 수정
@@ -507,6 +490,19 @@
                     }).join('')}
                 </div>
             `).join('');
+
+            // ★ 해결책 2: 동적으로 생성된 비디오 태그들이 모바일 환경에서도 확실하게 자동 재생되도록 강제 트리거
+            setTimeout(() => {
+                const videos = document.querySelectorAll('#main-scroll video');
+                videos.forEach(vid => {
+                    vid.muted = true;
+                    vid.playsInline = true;
+                    const playPromise = vid.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => console.log('재생 대기중...', e));
+                    }
+                });
+            }, 100);
         }
 
         // --- 6. [스크롤 조작 지원] ---
