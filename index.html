@@ -239,8 +239,8 @@
             if (!inputElement.files || inputElement.files.length === 0) return;
             const file = inputElement.files[0];
             
-            if (file.size > 30 * 1024 * 1024) {
-                alert('영상 용량이 너무 큽니다! (30MB 이하로 올려주세요)');
+            if (file.size > 200 * 1024 * 1024) {
+                alert('영상 용량이 너무 큽니다! (200MB 이하)');
                 inputElement.value = ''; 
                 return;
             }
@@ -308,7 +308,80 @@
         previewViewport.addEventListener('touchmove', handleDragMove, {passive: false});
         window.addEventListener('touchend', handleDragEnd);
 
-        // --- 5. 영상 업로드 처리 ---
+        // --- 5. 영상 재인코딩 (용량 압축) ---
+        // Android/Chrome: MediaRecorder로 WebM 재인코딩 → 용량 대폭 감소, Drive 트랜스코딩 없이 즉시 재생
+        // iOS/Safari: canvas 해상도 축소 후 MP4 또는 원본 유지
+        async function compressVideo(file) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                video.muted = true;
+                video.playsInline = true;
+                video.src = URL.createObjectURL(file);
+
+                video.onloadedmetadata = async () => {
+                    const MAX_DIM = 720;
+                    let w = video.videoWidth;
+                    let h = video.videoHeight;
+                    if (w > MAX_DIM || h > MAX_DIM) {
+                        const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+                        w = Math.round(w * ratio);
+                        h = Math.round(h * ratio);
+                    }
+                    w = w % 2 === 0 ? w : w - 1;
+                    h = h % 2 === 0 ? h : h - 1;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+
+                    const webmSupported = typeof MediaRecorder !== 'undefined' &&
+                        (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ||
+                         MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ||
+                         MediaRecorder.isTypeSupported('video/webm'));
+
+                    const doRecord = (mimeType, outMime, outExt) => {
+                        const stream = canvas.captureStream(30);
+                        const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 800000 });
+                        const chunks = [];
+                        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                        recorder.onstop = () => {
+                            const blob = new Blob(chunks, { type: outMime });
+                            console.log('압축: ' + (file.size/1024/1024).toFixed(1) + 'MB → ' + (blob.size/1024/1024).toFixed(1) + 'MB');
+                            resolve({ blob, extension: outExt, mimeType: outMime });
+                        };
+                        recorder.start();
+                        video.currentTime = 0;
+                        video.play().then(() => {
+                            const draw = () => {
+                                if (video.ended || video.paused) { recorder.stop(); stream.getTracks().forEach(t => t.stop()); return; }
+                                ctx.drawImage(video, 0, 0, w, h);
+                                requestAnimationFrame(draw);
+                            };
+                            draw();
+                        });
+                    };
+
+                    if (webmSupported) {
+                        const mt = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9'
+                                 : MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8'
+                                 : 'video/webm';
+                        doRecord(mt, 'video/webm', 'webm');
+                    } else if (typeof MediaRecorder !== 'undefined' &&
+                               (MediaRecorder.isTypeSupported('video/mp4') || MediaRecorder.isTypeSupported('video/mp4;codecs=avc1'))) {
+                        const mt = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1') ? 'video/mp4;codecs=avc1' : 'video/mp4';
+                        doRecord(mt, 'video/mp4', 'mp4');
+                    } else {
+                        console.log('재인코딩 불가: 원본 사용');
+                        resolve({ blob: file, extension: file.name.split('.').pop(), mimeType: file.type });
+                    }
+                };
+
+                video.onerror = () => resolve({ blob: file, extension: file.name.split('.').pop(), mimeType: file.type });
+            });
+        }
+
+        // --- 6. 영상 업로드 처리 ---
         window.confirmUpload = async function() {
             const { file, time, studentId } = pendingUploadData;
             if (!file) return;
@@ -319,55 +392,47 @@
             previewModal.classList.add('opacity-0');
             setTimeout(() => previewModal.classList.add('hidden'), 300);
 
-            loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
+            loadingText.innerText = "영상을 최적화하는 중입니다... (용량 압축 중)";
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async function() {
-                const base64Data = reader.result.split(',')[1];
-                const extension = file.name.split('.').pop();
-                
-                const payload = {
-                    studentId: studentId,
-                    time: time,
-                    text: finalPayloadText,
-                    videoBase64: base64Data,
-                    mimeType: file.type,
-                    extension: extension
-                };
+            try {
+                const { blob, extension, mimeType } = await compressVideo(file);
 
-                try {
-                    const response = await fetch(GAS_WEB_APP_URL, {
-                        method: 'POST',
-                        redirect: "follow",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if(result.success) {
-                        // ★ [수정 2] 로컬 임시 URL 대신 서버에서 받아온 Drive URL을 저장
-                        //    → 새로고침·다른 기기에서도 영상이 재생됨
-                        if (!UPLOADS[time]) UPLOADS[time] = {};
-                        UPLOADS[time][studentId] = { 
-                            videoUrl: result.videoUrl,   // ← Drive URL 사용
-                            text: finalPayloadText 
-                        };
-                        renderApp();
-                    } else {
-                        alert("업로드 실패: " + result.error);
-                    }
-                } catch (error) {
-                    alert("서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)");
-                    console.error(error);
-                } finally {
-                    loadingScreen.classList.add('opacity-0');
-                    setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                loadingText.innerText = "업로드 중입니다... 잠시만 기다려주세요!";
+
+                const base64Data = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+
+                const payload = { studentId, time, text: finalPayloadText, videoBase64: base64Data, mimeType, extension };
+
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    redirect: "follow",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    if (!UPLOADS[time]) UPLOADS[time] = {};
+                    UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: finalPayloadText };
+                    renderApp();
+                } else {
+                    alert("업로드 실패: " + result.error);
                 }
-            };
+            } catch (error) {
+                alert("서버 통신 오류가 발생했습니다.");
+                console.error(error);
+            } finally {
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+            }
         }
 
         // --- 6. 화면 렌더링 ---
