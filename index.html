@@ -133,7 +133,7 @@
 
         // --- 1. 데이터 로드 ---
         async function fetchInitialData() {
-            if(GAS_WEB_APP_URL === 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec' || GAS_WEB_APP_URL === '') {
+            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요' || GAS_WEB_APP_URL === '') {
                 alert("코드(index.html) 상단에 구글 웹 앱 URL을 먼저 입력해주세요!");
                 loadingText.innerText = "URL 설정 필요";
                 return;
@@ -157,9 +157,13 @@
                     }
                 });
                 // HH:MM 형식이므로 문자열 비교로 시간순 정렬 가능
-                groupMissions = Array.from(uniqueMissionsMap.values()).sort((a, b) => {
-                    return a.time.localeCompare(b.time);
-                });
+                // 혹시 "GMT+9" 등이 붙어있는 경우를 대비해 HH:MM만 추출
+                groupMissions = Array.from(uniqueMissionsMap.values())
+                    .map(m => {
+                        const match = m.time.match(/(\d{1,2}:\d{2})/);
+                        return { ...m, time: match ? match[1].padStart(5, '0') : m.time };
+                    })
+                    .sort((a, b) => a.time.localeCompare(b.time));
                 
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
@@ -235,8 +239,8 @@
             if (!inputElement.files || inputElement.files.length === 0) return;
             const file = inputElement.files[0];
             
-            if (file.size > 15 * 1024 * 1024) {
-                alert('영상 용량이 너무 큽니다! (15MB 이하로 2~3초만 짧게 찍어주세요)');
+            if (file.size > 30 * 1024 * 1024) {
+                alert('영상 용량이 너무 큽니다! (30MB 이하로 올려주세요)');
                 inputElement.value = ''; 
                 return;
             }
@@ -445,7 +449,7 @@
                                         <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/50 flex items-center justify-center text-xs sm:text-sm ${member.profile} shadow-md">${member.emoji}</div>
                                         <div class="flex items-center gap-2">
                                             <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
-                                                ${member.id} ${member.name}
+                                                ${member.id}
                                             </span>
                                             ${isMe && uploadData ? `
                                                 <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
@@ -480,12 +484,19 @@
                 videos.forEach(vid => {
                     vid.muted = true;
                     vid.playsInline = true;
+                    vid.loop = true;
+                    vid.load(); // src 재인식 강제
                     const playPromise = vid.play();
                     if (playPromise !== undefined) {
                         playPromise.catch(e => console.log('재생 대기중...', e));
                     }
+                    // loop 속성이 무시되는 환경(일부 모바일)을 대비해 ended 이벤트로 수동 루프
+                    vid.addEventListener('ended', function() {
+                        this.currentTime = 0;
+                        this.play().catch(() => {});
+                    });
                 });
-            }, 100);
+            }, 300);
         }
 
         // --- 7. 스크롤 및 dot 조작 ---
