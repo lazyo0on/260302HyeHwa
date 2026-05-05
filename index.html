@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>현체로그 - 우리들의 체험학습 기록</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @keyframes tv-noise {
             0%, 100% { transform: translate(0, 0); }
@@ -31,456 +32,326 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
-        video { user-drag: none; -webkit-user-drag: none; }
-        /* Drive iframe: 기본 UI 숨기고 영상만 꽉 채우기 */
-        .drive-iframe-wrap { position:absolute; inset:0; overflow:hidden; }
-        .drive-iframe-wrap iframe {
-            width: 300%; height: 300%;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            border: none; pointer-events: none; opacity: 0.85;
-        }
+        video { object-fit: cover; width: 100%; height: 100%; }
     </style>
 </head>
 <body class="bg-gray-900 font-sans text-gray-800 h-screen overflow-hidden">
 
-    <!-- 로딩 스크린 -->
+    <!-- Loading Screen -->
     <div id="loading-screen" class="absolute inset-0 z-[70] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
-        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
         <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse">데이터를 불러오는 중입니다...</p>
     </div>
 
-    <!-- 로그인 스크린 -->
+    <!-- Login Screen -->
     <div id="login-screen" class="absolute inset-0 z-[60] bg-gray-900 flex flex-col items-center justify-center p-6 text-white transition-opacity duration-500">
         <div class="w-full max-w-xs text-center">
             <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-lg">현체로그</h1>
-            <p class="text-gray-400 text-sm mb-10">우리 조의 체험학습 기록장</p>
-            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-4 rounded-2xl mb-3 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
-            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-4 rounded-2xl mb-6 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
-            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-gray-900 font-black text-lg py-4 rounded-2xl shadow-[0_4px_14px_0_rgba(250,204,21,0.39)] hover:scale-[1.02] active:scale-[0.98] transition-transform">
+            <p class="text-gray-400 text-sm mb-10">Supabase Edition</p>
+            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-4 rounded-2xl mb-3 text-gray-900 font-bold focus:outline-none">
+            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-4 rounded-2xl mb-6 text-gray-900 font-bold focus:outline-none">
+            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-gray-900 font-black text-lg py-4 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-transform">
                 시작하기
             </button>
-            <p id="login-error" class="text-pink-400 text-sm mt-4 hidden font-medium bg-pink-400/10 py-2 rounded-lg">학번이나 비밀번호를 확인해주세요.</p>
+            <p id="login-error" class="text-pink-400 text-sm mt-4 hidden font-medium">학번이나 비밀번호를 확인해주세요.</p>
         </div>
     </div>
 
-    <!-- 영상 위치 조정 모달 -->
+    <!-- Preview Modal -->
     <div id="preview-modal" class="absolute inset-0 z-[65] bg-gray-900/95 flex flex-col items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
         <div class="w-full max-w-[400px] flex flex-col items-center">
             <h2 class="text-white font-bold text-lg mb-2">영상의 보여질 부분을 드래그하세요</h2>
-            <p class="text-gray-400 text-xs mb-4">터치하여 원하는 위치로 화면을 옮길 수 있습니다.</p>
             <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 cursor-move touch-none">
-                <video id="preview-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover pointer-events-none" style="object-position: 50% 50%;"></video>
+                <video id="preview-video" src="" autoplay loop muted playsinline style="object-position: 50% 50%;"></video>
             </div>
-            <div class="w-full mt-6 flex flex-col gap-3">
-                <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/10 text-white placeholder-gray-400 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center border border-white/20">
+            <div class="w-full mt-6 flex flex-col gap-3 text-center">
+                <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/10 text-white px-4 py-3 rounded-xl border border-white/20 focus:outline-none">
                 <div class="flex gap-2">
-                    <button onclick="closePreviewModal()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-600 transition-colors">취소</button>
-                    <button onclick="confirmUpload()" class="flex-1 bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl shadow-md hover:scale-[1.02] transition-transform">위치 고정하고 올리기</button>
+                    <button onclick="closePreviewModal()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl">취소</button>
+                    <button id="upload-btn" onclick="confirmUpload()" class="flex-1 bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl">올리기</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 메인 앱 -->
+    <!-- Main App -->
     <div id="main-app" class="flex justify-center items-center h-screen hidden opacity-0 transition-opacity duration-500">
-        <div class="relative w-full max-w-[430px] h-full sm:h-[90vh] sm:rounded-[40px] bg-white overflow-hidden shadow-2xl flex flex-col sm:border-[8px] border-yellow-300 border-opacity-80">
-            <header class="flex items-center justify-between px-4 py-3 sm:py-4 z-20 bg-white shadow-sm shrink-0 h-[60px]">
-                <div class="relative flex items-center">
-                    <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative"></select>
-                    <div class="pointer-events-none absolute right-0 flex items-center text-gray-800 z-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
+        <div class="relative w-full max-w-[430px] h-full sm:h-[90vh] sm:rounded-[40px] bg-white overflow-hidden shadow-2xl flex flex-col border-yellow-300 sm:border-[8px]">
+            <header class="flex items-center justify-between px-4 py-3 z-20 bg-white shadow-sm h-[60px]">
+                <div class="flex items-center gap-1">
+                    <select id="group-select" onchange="handleGroupChange(this.value)" class="font-black text-sm text-gray-800 focus:outline-none bg-transparent cursor-pointer"></select>
                 </div>
                 <div class="flex items-center gap-1.5" id="dots-container"></div>
-                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">--:--</div>
+                <div class="font-bold text-sm text-gray-800" id="current-time-display">--:--</div>
             </header>
-            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative h-[calc(100%-60px-24px)]"></main>
-            <div class="h-6 bg-white w-full shrink-0"></div>
+            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative"></main>
+            <div class="h-6 bg-white shrink-0"></div>
         </div>
     </div>
 
     <script>
-        // ★ 웹앱 URL을 여기에 입력하세요
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec';
+        /**
+         * ★ 수파베이스 설정 (본인의 프로젝트 정보로 교체하세요)
+         */
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_KEY = 'YOUR_ANON_KEY';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        /**
+         * ★ 기존 GAS URL (시트 기록용)
+         */
+        const GAS_WEB_APP_URL = 'YOUR_GAS_URL';
 
         let MOCK_SHEET_DATA = { users: [], missions: [] };
         let UPLOADS = {};
         let currentUser = null;
         let currentGroupMembers = [];
         let groupMissions = [];
-        let pendingUploadData = { file: null, time: null, studentId: null };
+        let pendingUploadData = { file: null, time: null, studentId: null, topic: null };
         let currentObjPos = { x: 50, y: 50 };
 
-        const loginScreen    = document.getElementById('login-screen');
-        const mainApp        = document.getElementById('main-app');
-        const mainScroll     = document.getElementById('main-scroll');
-        const dotsContainer  = document.getElementById('dots-container');
-        const groupSelect    = document.getElementById('group-select');
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        const mainScroll = document.getElementById('main-scroll');
+        const dotsContainer = document.getElementById('dots-container');
+        const groupSelect = document.getElementById('group-select');
         const currentTimeDisplay = document.getElementById('current-time-display');
-        const loadingScreen  = document.getElementById('loading-screen');
-        const loadingText    = document.getElementById('loading-text');
-        const previewModal   = document.getElementById('preview-modal');
-        const previewVideo   = document.getElementById('preview-video');
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingText = document.getElementById('loading-text');
+        const previewModal = document.getElementById('preview-modal');
+        const previewVideo = document.getElementById('preview-video');
         const previewViewport = document.getElementById('preview-viewport');
-        const previewText    = document.getElementById('preview-text');
+        const previewText = document.getElementById('preview-text');
 
-        // ── 유틸 ──────────────────────────────────────────────────────────
-        // ★ 시트와 동일하게 "8:00" 형식 유지 (padStart 없음)
-        function normalizeTime(val) {
-            if (!val) return '0:00';
-            const str = String(val).trim();
-            if (str.includes('GMT') || str.includes('Standard Time')) {
-                const d = new Date(str);
-                if (!isNaN(d)) return `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
-            }
-            const m = str.match(/(\d{1,2}):(\d{2})/);
-            if (m) return `${parseInt(m[1],10)}:${m[2]}`;
-            return str;
-        }
-
-        function timeToMinutes(t) {
-            const p = t.split(':');
-            return p.length >= 2 ? parseInt(p[0],10)*60 + parseInt(p[1],10) : 0;
-        }
-
-        // fileId → Drive 임베드 URL 생성
-        // /file/d/{ID}/preview 형식은 CORS 없이 iframe에서 재생됩니다
-        function getDriveEmbedUrl(fileId) {
-            if (!fileId) return '';
-            return `https://drive.google.com/file/d/${fileId}/preview`;
-        }
-
-        // ── 1. 데이터 로드 ────────────────────────────────────────────────
-        async function fetchInitialData() {
+        // 초기화: 데이터 로드
+        async function init() {
             try {
-                const res = await fetch(GAS_WEB_APP_URL + '?t=' + Date.now());
-                if (!res.ok) throw new Error('서버 응답 오류');
+                // 1. 유저 및 미션 정보 로드 (기존 GAS 활용)
+                const res = await fetch(GAS_WEB_APP_URL);
                 const data = await res.json();
-
-                MOCK_SHEET_DATA.users    = data.users    || [];
+                MOCK_SHEET_DATA.users = data.users || [];
                 MOCK_SHEET_DATA.missions = data.missions || [];
 
-                // 시간 정규화
-                MOCK_SHEET_DATA.missions.forEach(m => { m.time = normalizeTime(m.time); });
+                // 2. Supabase에서 업로드된 영상 기록 실시간 로드
+                const { data: dbUploads, error } = await supabase.from('uploads').select('*');
+                if (error) throw error;
 
-                // 업로드 기록 시간 키도 정규화
                 UPLOADS = {};
-                for (const rawKey in (data.uploads || {})) {
-                    UPLOADS[normalizeTime(rawKey)] = data.uploads[rawKey];
-                }
+                dbUploads.forEach(item => {
+                    if (!UPLOADS[item.mission_time]) UPLOADS[item.mission_time] = {};
+                    UPLOADS[item.mission_time][item.student_id] = {
+                        videoUrl: item.video_url,
+                        text: `${item.display_text}||POS:${item.object_pos}`
+                    };
+                });
 
-                // 미션 중복 제거 후 시간순 정렬
+                // 미션 정렬 및 필터링
                 const seen = new Map();
                 MOCK_SHEET_DATA.missions.forEach(m => { if (!seen.has(m.time)) seen.set(m.time, m); });
-                groupMissions = Array.from(seen.values()).sort((a,b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+                groupMissions = Array.from(seen.values()).sort((a,b) => {
+                    const t1 = a.time.split(':').map(Number);
+                    const t2 = b.time.split(':').map(Number);
+                    return (t1[0]*60 + t1[1]) - (t2[0]*60 + t2[1]);
+                });
 
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
             } catch (err) {
                 console.error(err);
-                loadingText.innerText = '연결 오류: 배포 설정을 확인하세요.';
-                alert('데이터를 불러오는데 실패했습니다.\n앱스 스크립트 배포 시 [액세스할 수 있는 사용자]가 [모든 사용자]로 되어 있는지 확인해주세요!');
+                alert("초기 로딩 실패. 설정을 확인하세요.");
             }
         }
-        window.addEventListener('DOMContentLoaded', fetchInitialData);
+        window.onload = init;
 
-        // ── 2. 로그인 ─────────────────────────────────────────────────────
-        function getInitialMissionIndex() {
-            if (!groupMissions.length) return 0;
-            const nowMins = new Date().getHours()*60 + new Date().getMinutes();
-            let idx = 0;
-            for (let i = 0; i < groupMissions.length; i++) {
-                if (timeToMinutes(groupMissions[i].time) <= nowMins) idx = i;
-            }
-            const m = groupMissions[idx];
-            if (m && UPLOADS[m.time]?.[currentUser.id] && idx+1 < groupMissions.length) idx++;
-            return idx;
-        }
-
-        window.handleLogin = function() {
-            const id  = document.getElementById('login-id').value.trim();
-            const pw  = document.getElementById('login-pw').value.trim();
-            const err = document.getElementById('login-error');
+        // 로그인
+        function handleLogin() {
+            const id = document.getElementById('login-id').value.trim();
+            const pw = document.getElementById('login-pw').value.trim();
             const user = MOCK_SHEET_DATA.users.find(u => u.id === id && u.pw === pw);
 
             if (user) {
                 currentUser = user;
                 currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === user.group);
                 populateGroupDropdown();
-                err.classList.add('hidden');
                 loginScreen.classList.add('opacity-0');
                 setTimeout(() => {
                     loginScreen.classList.add('hidden');
                     mainApp.classList.remove('hidden');
                     setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
                     renderApp();
-                    const idx = getInitialMissionIndex();
-                    setTimeout(() => { scrollToMission(idx); updateActiveDot(idx); }, 100);
+                    scrollToMission(0);
                 }, 500);
             } else {
-                err.classList.remove('hidden');
+                document.getElementById('login-error').classList.remove('hidden');
             }
-        };
+        }
 
-        // ── 3. 영상 미리보기 모달 ─────────────────────────────────────────
-        window.openPreviewModal = function(inputEl, time, studentId) {
+        // 업로드 준비
+        function openPreviewModal(inputEl, time, studentId, topic) {
             if (!inputEl.files?.length) return;
             const file = inputEl.files[0];
+            if (file.size > 50 * 1024 * 1024) { alert("50MB 이하만 가능합니다."); return; }
 
-            if (file.size > 30 * 1024 * 1024) {
-                alert('영상 용량이 너무 큽니다! (30MB 이하로 올려주세요)');
-                inputEl.value = '';
-                return;
-            }
-
-            pendingUploadData = { file, time, studentId };
-            currentObjPos = { x: 50, y: 50 };
-            previewVideo.style.objectPosition = '50% 50%';
-
-            const existing = UPLOADS[time]?.[studentId];
-            previewText.value = existing?.text ? existing.text.split('||POS:')[0] : '';
-
+            pendingUploadData = { file, time, studentId, topic };
             previewVideo.src = URL.createObjectURL(file);
-            previewViewport.style.height = `${Math.max(120, mainScroll.clientHeight / currentGroupMembers.length)}px`;
+            previewViewport.style.height = `${mainScroll.clientHeight / (currentGroupMembers.length || 2)}px`;
             previewModal.classList.remove('hidden');
             setTimeout(() => previewModal.classList.remove('opacity-0'), 10);
-        };
+        }
 
-        window.closePreviewModal = function() {
-            previewModal.classList.add('opacity-0');
-            setTimeout(() => {
-                previewModal.classList.add('hidden');
-                previewVideo.src = '';
-                pendingUploadData = { file: null, time: null, studentId: null };
-            }, 300);
-        };
-
-        // 드래그 조작
-        let isDragging = false, lastX, lastY;
-        const onDragStart = e => { isDragging=true; lastX = e.touches?.[0].clientX??e.clientX; lastY = e.touches?.[0].clientY??e.clientY; };
-        const onDragMove  = e => {
-            if (!isDragging) return;
-            e.preventDefault();
-            const cx = e.touches?.[0].clientX??e.clientX;
-            const cy = e.touches?.[0].clientY??e.clientY;
-            currentObjPos.x = Math.max(0,Math.min(100, currentObjPos.x - (cx-lastX)/previewViewport.clientWidth*100));
-            currentObjPos.y = Math.max(0,Math.min(100, currentObjPos.y - (cy-lastY)/previewViewport.clientHeight*100));
-            previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
-            lastX=cx; lastY=cy;
-        };
-        const onDragEnd = () => { isDragging = false; };
-        previewViewport.addEventListener('mousedown',  onDragStart);
-        previewViewport.addEventListener('mousemove',  onDragMove);
-        previewViewport.addEventListener('touchstart', onDragStart, {passive:false});
-        previewViewport.addEventListener('touchmove',  onDragMove,  {passive:false});
-        window.addEventListener('mouseup',  onDragEnd);
-        window.addEventListener('touchend', onDragEnd);
-
-        // ── 4. 업로드 ─────────────────────────────────────────────────────
-        window.confirmUpload = async function() {
-            const { file, time, studentId } = pendingUploadData;
-            if (!file) return;
-
-            const posText = `${previewText.value.trim()}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
-
-            previewModal.classList.add('opacity-0');
-            setTimeout(() => previewModal.classList.add('hidden'), 300);
-
-            // ① 로컬 URL로 즉시 화면에 표시 (업로드 완료 기다리지 않음)
-            const localUrl = URL.createObjectURL(file);
-            if (!UPLOADS[time]) UPLOADS[time] = {};
-            UPLOADS[time][studentId] = { videoUrl: localUrl, text: posText };
-            renderApp();
-
-            // ② 백그라운드에서 Drive 업로드
-            loadingText.innerText = '영상을 업로드 중입니다... 잠시만 기다려주세요!';
-            loadingScreen.classList.remove('hidden');
-            setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
+        // 실제 업로드 로직 (Supabase + GAS)
+        async function confirmUpload() {
+            const { file, time, studentId, topic } = pendingUploadData;
+            const btn = document.getElementById('upload-btn');
+            btn.disabled = true;
+            btn.innerText = "업로드 중...";
 
             try {
-                const base64 = await new Promise((res, rej) => {
-                    const r = new FileReader();
-                    r.onload  = () => res(r.result.split(',')[1]);
-                    r.onerror = rej;
-                    r.readAsDataURL(file);
-                });
+                // 1. Supabase Storage 업로드
+                const fileName = `${studentId}_${Date.now()}.${file.name.split('.').pop()}`;
+                const { data: storageData, error: storageError } = await supabase.storage
+                    .from('videos')
+                    .upload(fileName, file);
 
-                const payload = {
-                    studentId, time, text: posText,
-                    videoBase64: base64,
-                    mimeType: file.type,
-                    extension: file.name.split('.').pop()
+                if (storageError) throw storageError;
+
+                // 2. Public URL 가져오기
+                const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(fileName);
+
+                // 3. Supabase Database 기록
+                const { error: dbError } = await supabase.from('uploads').upsert({
+                    student_id: studentId,
+                    mission_time: time,
+                    mission_topic: topic,
+                    video_url: publicUrl,
+                    display_text: previewText.value.trim(),
+                    object_pos: `${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`
+                }, { onConflict: 'student_id, mission_time' });
+
+                if (dbError) throw dbError;
+
+                // 4. 기존 구글 시트 기록 유지 (백업용 비동기 호출)
+                fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        studentId, time, videoUrl: publicUrl,
+                        text: `${previewText.value.trim()}||POS:${currentObjPos.x},${currentObjPos.y}`
+                    })
+                }).catch(e => console.log("시트 기록 실패(무시가능):", e));
+
+                // UI 업데이트
+                if (!UPLOADS[time]) UPLOADS[time] = {};
+                UPLOADS[time][studentId] = {
+                    videoUrl: publicUrl,
+                    text: `${previewText.value.trim()}||POS:${currentObjPos.x},${currentObjPos.y}`
                 };
+                
+                alert("업로드 완료!");
+                closePreviewModal();
+                renderApp();
 
-                const res  = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST', redirect: 'follow',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await res.json();
-
-                if (result.success) {
-                    // ③ 서버에서 받은 fileId로 교체 → iframe 임베드로 다른 기기에서도 재생됨
-                    UPLOADS[time][studentId].fileId    = result.fileId;
-                    UPLOADS[time][studentId].videoUrl  = null; // blob URL 제거
-                    renderApp(); // iframe URL로 재렌더링
-                } else {
-                    alert('업로드 실패: ' + result.error);
-                    delete UPLOADS[time][studentId];
-                    renderApp();
-                }
             } catch (err) {
                 console.error(err);
-                alert('서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)');
-                delete UPLOADS[time][studentId];
-                renderApp();
+                alert("업로드 실패: " + err.message);
             } finally {
-                loadingScreen.classList.add('opacity-0');
-                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                btn.disabled = false;
+                btn.innerText = "올리기";
             }
-        };
+        }
 
-        // ── 5. 렌더링 ─────────────────────────────────────────────────────
+        function closePreviewModal() {
+            previewModal.classList.add('opacity-0');
+            setTimeout(() => { previewModal.classList.add('hidden'); previewVideo.src = ""; }, 300);
+        }
+
         function populateGroupDropdown() {
             const groups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
             groupSelect.innerHTML = groups.map(g => `<option value="${g}">${g}</option>`).join('');
             groupSelect.value = currentUser.group;
         }
 
-        window.handleGroupChange = function(g) {
+        function handleGroupChange(g) {
             currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === g);
             renderApp();
-            if (groupMissions.length) setTimeout(() => scrollToMission(getInitialMissionIndex()), 50);
-        };
+        }
 
         function renderApp() {
-            if (!groupMissions.length) {
-                mainScroll.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-400 font-bold">배정된 미션이 없습니다.</div>`;
-                return;
-            }
-
-            dotsContainer.innerHTML = groupMissions.map((_, i) => `
-                <button onclick="scrollToMission(${i})" data-index="${i}"
-                    class="dot-btn transition-all duration-300 flex items-center justify-center ${i===0?'text-yellow-400 scale-125':'w-2 h-2 rounded-full bg-gray-200'}">
-                    ${i===0?'🙂':''}
-                </button>`).join('');
-            currentTimeDisplay.innerText = groupMissions[0].time;
-
             mainScroll.innerHTML = groupMissions.map(mission => `
                 <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center">
                     ${currentGroupMembers.map(member => {
-                        const uploadData = UPLOADS[mission.time]?.[member.id] ?? null;
+                        const up = UPLOADS[mission.time]?.[member.id];
                         const isMe = member.id === currentUser.id;
-
-                        let displayStr = '', objPos = '50% 50%', streamUrl = '';
-                        if (uploadData) {
-                            const parts = (uploadData.text||'').split('||POS:');
-                            displayStr = parts[0];
-                            if (parts[1]) objPos = parts[1].replace(',','% ') + '%';
-                            // fileId → 임베드 URL 변환
-                            streamUrl = uploadData.fileId
-                                ? getDriveEmbedUrl(uploadData.fileId)
-                                : (uploadData.videoUrl?.startsWith('blob:') ? uploadData.videoUrl : '');
+                        let pos = '50% 50%', dText = '';
+                        if (up) {
+                            const p = up.text.split('||POS:');
+                            dText = p[0];
+                            if (p[1]) pos = p[1].replace(',','% ') + '%';
                         }
 
                         return `
-                        <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
-                            ${uploadData ? `
-                                ${streamUrl.startsWith('blob:') ? `
-                                    <video src="${streamUrl}" autoplay loop muted playsinline preload="auto"
-                                        class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none"
-                                        style="object-position:${objPos};"></video>
-                                ` : `
-                                    <div class="drive-iframe-wrap">
-                                        <iframe src="${streamUrl}"
-                                            allow="autoplay"
-                                            scrolling="no"></iframe>
-                                    </div>
-                                `}
-                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none"></div>
+                        <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black shadow-sm flex items-center justify-center">
+                            ${up ? `
+                                <video src="${up.videoUrl}" autoplay loop muted playsinline style="object-position:${pos}"></video>
+                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40"></div>
                             ` : `
-                                <div class="noise-bg pointer-events-none"></div>
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none"></div>
+                                <div class="noise-bg"></div>
                                 ${isMe ? `
-                                    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                                        <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                                            영상 선택
-                                            <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}')">
-                                        </label>
-                                    </div>
-                                ` : `
-                                    <div class="absolute z-10 flex flex-col items-center opacity-30 pointer-events-none">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white mb-2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                                        <p class="text-white text-[10px] font-bold tracking-widest">WAITING</p>
-                                    </div>
-                                `}
+                                    <label class="z-20 bg-pink-500 text-white px-4 py-2 rounded-full font-bold cursor-pointer text-sm">
+                                        영상 선택
+                                        <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}','${mission.topic}')">
+                                    </label>
+                                ` : '<p class="text-white/30 font-bold text-xs">WAITING...</p>'}
                             `}
-                            <div class="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between z-10 pointer-events-none">
+                            <div class="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none">
                                 <div class="flex justify-between items-start">
-                                    <div class="flex items-center gap-1.5">
-                                        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/50 flex items-center justify-center text-xs sm:text-sm ${member.profile} shadow-md">${member.emoji}</div>
-                                        <div class="flex items-center gap-2">
-                                            <!-- ★ member.name 제거, 학번만 표시 -->
-                                            <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">${member.id}</span>
-                                            ${isMe && uploadData ? `
-                                                <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
-                                                    영상 수정
-                                                    <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}')">
-                                                </label>
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                    <span class="text-white font-semibold text-[9px] sm:text-[10px] tracking-wider drop-shadow-md bg-black/30 px-2 py-0.5 rounded">${mission.date}</span>
+                                    <span class="bg-black/40 backdrop-blur-md text-white text-[10px] px-2.5 py-1 rounded-full border border-white/10">${member.id}</span>
+                                    <span class="text-white/80 text-[10px]">${mission.date}</span>
                                 </div>
-                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-[90%]">
-                                    <h1 class="text-white font-black text-3xl sm:text-5xl tracking-tighter" style="text-shadow:0 4px 12px rgba(0,0,0,0.8);">${mission.time}</h1>
-                                    ${displayStr ? `<p class="text-white font-bold text-[10px] sm:text-xs mt-1 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20">${displayStr}</p>` : ''}
+                                <div class="text-center">
+                                    <h2 class="text-white font-black text-4xl" style="text-shadow: 0 2px 10px rgba(0,0,0,0.5)">${mission.time}</h2>
+                                    ${dText ? `<p class="inline-block bg-black/50 text-white text-[10px] px-3 py-1 rounded-lg mt-1">${dText}</p>` : ''}
                                 </div>
-                                <div class="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-black/60 backdrop-blur-md text-white text-[9px] sm:text-[10px] px-2 py-1.5 rounded-lg border border-white/10 shadow-lg max-w-[70%] text-right truncate">
-                                    🎯 ${mission.topic}
+                                <div class="text-right">
+                                    <span class="text-white/90 text-[10px] bg-black/30 px-2 py-1 rounded">🎯 ${mission.topic}</span>
                                 </div>
                             </div>
                         </div>`;
                     }).join('')}
                 </div>`).join('');
-
-            // 비디오 자동재생 트리거
-            setTimeout(() => {
-                document.querySelectorAll('#main-scroll video').forEach(v => {
-                    v.muted = true; v.loop = true;
-                    v.play().catch(() => {});
-                });
-            }, 300);
+            updateDots();
         }
 
-        // ── 6. 스크롤 ─────────────────────────────────────────────────────
-        function updateActiveDot(idx) {
-            if (!groupMissions[idx]) return;
-            document.querySelectorAll('.dot-btn').forEach((d, i) => {
-                if (i === idx) { d.className='dot-btn transition-all duration-300 flex items-center justify-center text-yellow-400 scale-125'; d.innerHTML='🙂'; }
-                else           { d.className='dot-btn transition-all duration-300 flex items-center justify-center w-2 h-2 rounded-full bg-gray-200'; d.innerHTML=''; }
-            });
-            currentTimeDisplay.innerText = groupMissions[idx].time;
+        function updateDots() {
+            const idx = Math.round(mainScroll.scrollLeft / mainScroll.clientWidth);
+            dotsContainer.innerHTML = groupMissions.map((m, i) => `
+                <div class="transition-all duration-300 ${i === idx ? 'text-yellow-400 scale-125' : 'w-1.5 h-1.5 bg-gray-300 rounded-full'}">
+                    ${i === idx ? '●' : ''}
+                </div>
+            `).join('');
+            if (groupMissions[idx]) currentTimeDisplay.innerText = groupMissions[idx].time;
         }
 
-        window.scrollToMission = function(idx) {
+        function scrollToMission(idx) {
             mainScroll.scrollTo({ left: mainScroll.clientWidth * idx, behavior: 'smooth' });
+        }
+
+        mainScroll.addEventListener('scroll', updateDots);
+
+        // 드래그 조작 (미리보기)
+        let isDragging = false, lastX, lastY;
+        previewViewport.onpointerdown = e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; previewViewport.setPointerCapture(e.pointerId); };
+        previewViewport.onpointermove = e => {
+            if (!isDragging) return;
+            currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x - (e.clientX - lastX) / 2));
+            currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y - (e.clientY - lastY) / 2));
+            previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
+            lastX = e.clientX; lastY = e.clientY;
         };
+        previewViewport.onpointerup = () => isDragging = false;
 
-        mainScroll.addEventListener('scroll', () => {
-            updateActiveDot(Math.round(mainScroll.scrollLeft / mainScroll.clientWidth));
-        });
-
-        let isDown=false, startX, scrollLeft;
-        mainScroll.addEventListener('mousedown', e => { isDown=true; mainScroll.classList.remove('snap-mandatory'); startX=e.pageX-mainScroll.offsetLeft; scrollLeft=mainScroll.scrollLeft; });
-        mainScroll.addEventListener('mouseleave', () => { isDown=false; mainScroll.classList.add('snap-mandatory'); });
-        mainScroll.addEventListener('mouseup', () => { isDown=false; mainScroll.classList.add('snap-mandatory'); scrollToMission(Math.round(mainScroll.scrollLeft/mainScroll.clientWidth)); });
-        mainScroll.addEventListener('mousemove', e => { if(!isDown) return; e.preventDefault(); mainScroll.scrollLeft = scrollLeft-(e.pageX-mainScroll.offsetLeft-startX)*2; });
     </script>
 </body>
 </html>
