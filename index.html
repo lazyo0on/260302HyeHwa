@@ -32,6 +32,14 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
         video { user-drag: none; -webkit-user-drag: none; }
+        /* Drive iframe: 기본 UI 숨기고 영상만 꽉 채우기 */
+        .drive-iframe-wrap { position:absolute; inset:0; overflow:hidden; }
+        .drive-iframe-wrap iframe {
+            width: 300%; height: 300%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            border: none; pointer-events: none; opacity: 0.85;
+        }
     </style>
 </head>
 <body class="bg-gray-900 font-sans text-gray-800 h-screen overflow-hidden">
@@ -121,15 +129,14 @@
         const previewText    = document.getElementById('preview-text');
 
         // ── 유틸 ──────────────────────────────────────────────────────────
+        // ★ 시트와 동일하게 "8:00" 형식 유지 (padStart 없음)
         function normalizeTime(val) {
-            if (!val) return '00:00';
+            if (!val) return '0:00';
             const str = String(val).trim();
-            // Date 객체 문자열(GMT 포함)인 경우
             if (str.includes('GMT') || str.includes('Standard Time')) {
                 const d = new Date(str);
                 if (!isNaN(d)) return `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
             }
-            // HH:MM 추출
             const m = str.match(/(\d{1,2}):(\d{2})/);
             if (m) return `${parseInt(m[1],10)}:${m[2]}`;
             return str;
@@ -140,16 +147,11 @@
             return p.length >= 2 ? parseInt(p[0],10)*60 + parseInt(p[1],10) : 0;
         }
 
-        // Drive URL에서 파일 ID 추출 후 export=view URL로 통일
-        // export=view: 브라우저에서 인라인 재생 (다운로드 아님)
-        function getDriveStreamUrl(url) {
-            if (!url) return '';
-            if (url.startsWith('blob:')) return url;
-            const m1 = url.match(/id=([a-zA-Z0-9_-]+)/);
-            const m2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            const id = m1?.[1] ?? m2?.[1] ?? '';
-            if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
-            return url;
+        // fileId → Drive 임베드 URL 생성
+        // /file/d/{ID}/preview 형식은 CORS 없이 iframe에서 재생됩니다
+        function getDriveEmbedUrl(fileId) {
+            if (!fileId) return '';
+            return `https://drive.google.com/file/d/${fileId}/preview`;
         }
 
         // ── 1. 데이터 로드 ────────────────────────────────────────────────
@@ -322,8 +324,10 @@
                 const result = await res.json();
 
                 if (result.success) {
-                    // ③ Drive URL(lh3 변환)로 교체 → 다른 기기/새로고침 후에도 재생됨
-                    UPLOADS[time][studentId].videoUrl = getDriveStreamUrl(result.videoUrl);
+                    // ③ 서버에서 받은 fileId로 교체 → iframe 임베드로 다른 기기에서도 재생됨
+                    UPLOADS[time][studentId].fileId    = result.fileId;
+                    UPLOADS[time][studentId].videoUrl  = null; // blob URL 제거
+                    renderApp(); // iframe URL로 재렌더링
                 } else {
                     alert('업로드 실패: ' + result.error);
                     delete UPLOADS[time][studentId];
@@ -377,17 +381,26 @@
                             const parts = (uploadData.text||'').split('||POS:');
                             displayStr = parts[0];
                             if (parts[1]) objPos = parts[1].replace(',','% ') + '%';
-                            // ★ lh3 URL 변환 적용 (다른 사람 영상도 CORS 없이 재생)
-                            streamUrl = getDriveStreamUrl(uploadData.videoUrl);
+                            // fileId → 임베드 URL 변환
+                            streamUrl = uploadData.fileId
+                                ? getDriveEmbedUrl(uploadData.fileId)
+                                : (uploadData.videoUrl?.startsWith('blob:') ? uploadData.videoUrl : '');
                         }
 
                         return `
                         <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <video src="${streamUrl}" autoplay loop muted playsinline preload="auto"
-                                    class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none"
-                                    style="object-position:${objPos};"
-                                    onerror="this.style.display='none'"></video>
+                                ${streamUrl.startsWith('blob:') ? `
+                                    <video src="${streamUrl}" autoplay loop muted playsinline preload="auto"
+                                        class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none"
+                                        style="object-position:${objPos};"></video>
+                                ` : `
+                                    <div class="drive-iframe-wrap">
+                                        <iframe src="${streamUrl}"
+                                            allow="autoplay"
+                                            scrolling="no"></iframe>
+                                    </div>
+                                `}
                                 <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none"></div>
                             ` : `
                                 <div class="noise-bg pointer-events-none"></div>
