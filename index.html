@@ -286,8 +286,8 @@
             if (!inputEl.files?.length) return;
             const file = inputEl.files[0];
             
-            // ★ 용량 제한 확인 (15MB 제한)
-            const maxSizeMB = 15;
+            // ★ 용량 제한 확인 (10MB 제한)
+            const maxSizeMB = 10;
             const currentSizeMB = (file.size / 1024 / 1024).toFixed(1);
             
             if (file.size > maxSizeMB * 1024 * 1024) { 
@@ -435,7 +435,7 @@
                                             영상 선택
                                             <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}','${mission.topic}')">
                                         </label>
-                                        <span class="text-white/60 text-[8px] mt-1.5 font-bold bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">최대 15MB</span>
+                                        <span class="text-white/60 text-[8px] mt-1.5 font-bold bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">최대 10MB</span>
                                     </div>
                                 ` : '<p class="text-white/30 font-bold text-[10px]">WAITING...</p>'}
                             `}
