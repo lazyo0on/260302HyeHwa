@@ -4,9 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>현체로그 - 우리들의 체험학습 기록</title>
+    <!-- 구글 폰트(Jua: 손글씨/크레용 느낌) 불러오기 -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* 기본 폰트 적용 */
+        body { font-family: 'Jua', sans-serif; }
+
+        /* 크레용 느낌의 삐뚤빼뚤한 입력창 테두리 */
+        .crayon-box {
+            border: 3px solid #1e3a8a; /* 짙은 네이비 (교복색) */
+            border-radius: 8px 24px 12px 24px / 24px 8px 24px 12px;
+            background-color: rgba(255, 255, 255, 0.95);
+            position: relative;
+        }
+
+        /* 크레용 느낌의 삐뚤빼뚤한 버튼 */
+        .crayon-btn {
+            background-color: #facc15; /* 노란색 */
+            border: 3px solid #1e3a8a;
+            border-radius: 24px 10px 24px 10px / 10px 24px 10px 24px;
+            box-shadow: 4px 5px 0px #1e3a8a;
+            transition: all 0.1s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        /* 버튼 눌렸을 때 그림자 사라지며 들어가는 효과 */
+        .crayon-btn:active {
+            box-shadow: 0px 0px 0px #1e3a8a;
+            transform: translate(4px, 5px);
+        }
+
+        /* 크레용 질감 (거친 노이즈 오버레이) */
+        .crayon-texture::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E");
+            pointer-events: none; /* 클릭 방해 안 함 */
+            border-radius: inherit;
+        }
+
+        /* 크레용 느낌 텍스트 그림자 */
+        .crayon-text-shadow {
+            text-shadow: 2px 2px 0px #1e3a8a;
+        }
+
         @keyframes tv-noise {
             0%, 100% { transform: translate(0, 0); }
             10% { transform: translate(-5%, -5%); }
@@ -32,79 +76,85 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
-        /* object-fit cover를 유지하되 transform scale을 섞어 줌 */
         video { object-fit: cover; width: 100%; height: 100%; transform-origin: center; }
     </style>
 </head>
-<body class="bg-sky-50 font-sans text-gray-800 h-[100dvh] overflow-hidden flex flex-col items-center justify-center">
+<body class="bg-sky-50 h-[100dvh] overflow-hidden flex flex-col items-center justify-center text-blue-900">
 
     <!-- Loading Screen -->
     <div id="loading-screen" class="absolute inset-0 z-[70] bg-[url('cover.png')] bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center transition-opacity duration-300">
-        <!-- 배경 블러 처리 (글씨가 잘 보이도록) -->
         <div class="absolute inset-0 bg-white/40 backdrop-blur-lg"></div>
         <div class="z-10 flex flex-col items-center">
             <svg id="loading-spinner" class="animate-spin h-12 w-12 text-yellow-400 drop-shadow-md mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse text-center px-6 text-blue-900 drop-shadow-sm">데이터를 불러오는 중입니다...</p>
-            <p id="error-details" class="text-sm font-bold text-pink-600 mt-4 px-6 text-center whitespace-pre-wrap bg-white/60 p-2 rounded-lg"></p>
+            <p id="loading-text" class="text-xl tracking-wider animate-pulse text-center px-6 text-blue-900 drop-shadow-sm">데이터를 불러오는 중입니다...</p>
+            <p id="error-details" class="text-lg text-pink-600 mt-4 px-6 text-center whitespace-pre-wrap bg-white/60 p-2 rounded-lg"></p>
         </div>
     </div>
 
     <!-- Login Screen -->
-    <div id="login-screen" class="absolute inset-0 z-[60] bg-[url('cover.png')] bg-cover bg-center bg-no-repeat flex flex-col items-center justify-start pt-[12dvh] px-6 transition-opacity duration-500">
-        <!-- 유리 질감(Frosted Glass) 효과를 준 로그인 박스 -->
-        <div class="w-full max-w-xs text-center bg-white/20 backdrop-blur-md border border-white/40 p-7 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
-            <h1 class="text-5xl font-black mb-1 text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] tracking-tight">현체로그</h1>
-            <p class="text-blue-900 font-extrabold text-sm mb-8 drop-shadow-sm">우리들의 체험학습 기록</p>
+    <div id="login-screen" class="absolute inset-0 z-[60] bg-[url('cover.png')] bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center p-4 transition-opacity duration-500">
+        <!-- 배경을 살짝 흐리게 하여 로그인 창 강조 -->
+        <div class="absolute inset-0 bg-white/20 backdrop-blur-md"></div>
+        
+        <!-- 사용자가 직접 그린 Login.png 로그인 창 -->
+        <div class="relative z-10 w-full max-w-[380px] shadow-2xl rounded-[32px] overflow-hidden transform hover:scale-[1.01] transition-transform">
+            <!-- 깃허브에 올릴 Login.png 이미지 -->
+            <img src="Login.png" alt="로그인 화면" class="w-full h-auto pointer-events-none">
             
-            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-3.5 rounded-2xl mb-3 bg-white/90 text-blue-900 font-bold placeholder-blue-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/60 shadow-inner">
-            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-3.5 rounded-2xl mb-6 bg-white/90 text-blue-900 font-bold placeholder-blue-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/60 shadow-inner">
+            <!-- 투명 학번 입력창: 패딩(pl)을 주어 그림에 적힌 글씨와 겹치지 않게 우측에 입력되도록 설정 -->
+            <input id="login-id" type="number" class="absolute top-[45.5%] left-[9%] w-[82%] h-[11.5%] bg-transparent text-blue-900 text-2xl font-bold focus:outline-none pl-[25%] focus:bg-yellow-400/20 rounded-[20px] transition-colors">
             
-            <!-- 교복 색상에 맞춘 노란 버튼 -->
-            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-blue-900 font-black text-lg py-3.5 rounded-2xl shadow-[0_4px_14px_0_rgba(250,204,21,0.6)] hover:scale-[1.02] active:scale-[0.98] transition-transform">
-                시작하기
+            <!-- 투명 비밀번호 입력창: '비밀번호' 글씨가 더 길어서 패딩을 더 많이 줌 -->
+            <input id="login-pw" type="password" class="absolute top-[60.5%] left-[9%] w-[82%] h-[11.5%] bg-transparent text-blue-900 text-2xl font-bold focus:outline-none pl-[35%] focus:bg-yellow-400/20 rounded-[20px] transition-colors">
+            
+            <!-- 투명 시작하기 버튼 -->
+            <button onclick="handleLogin()" class="absolute top-[77%] left-[14%] w-[72%] h-[12.5%] bg-transparent cursor-pointer rounded-[20px] hover:bg-white/30 active:bg-black/10 transition-colors">
+                <span class="sr-only">시작하기</span>
             </button>
-            <p id="login-error" class="text-pink-600 text-sm mt-4 hidden font-bold bg-white/60 py-2 rounded-lg backdrop-blur-sm">학번이나 비밀번호를 확인해주세요.</p>
+            
+            <!-- 에러 메시지 (하단 빈 공간에 배치) -->
+            <p id="login-error" class="absolute bottom-[2%] left-1/2 transform -translate-x-1/2 w-[85%] text-pink-600 text-sm hidden font-bold bg-white/95 py-2 rounded-xl text-center border-2 border-pink-400 shadow-md">학번/비밀번호 확인요망!</p>
         </div>
     </div>
 
     <!-- Preview Modal -->
     <div id="preview-modal" class="absolute inset-0 z-[65] bg-gray-900/95 flex flex-col items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
         <div class="w-full max-w-[400px] flex flex-col items-center">
-            <h2 class="text-white font-bold text-lg mb-1">화면 조정</h2>
-            <p class="text-gray-300 text-xs mb-1">드래그로 위치를, 두 손가락으로 크기를 조절하세요.</p>
-            <p id="preview-file-size" class="text-yellow-400 text-[10px] font-bold mb-2">용량: -MB</p>
-            <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 touch-none flex items-center justify-center cursor-grab active:cursor-grabbing">
-                <video id="preview-video" src="" autoplay loop muted playsinline style="object-position: 50% 50%; transform: scale(1);"></video>
+            <h2 class="text-white text-2xl mb-1">화면 조정</h2>
+            <p class="text-gray-300 text-base mb-1">드래그로 위치를, 두 손가락으로 크기를 조절하세요.</p>
+            <p id="preview-file-size" class="text-yellow-400 text-sm mb-2">용량: -MB</p>
+            <div id="preview-viewport" class="crayon-box relative w-full overflow-hidden bg-black shadow-lg border-2 border-white/40 touch-none flex items-center justify-center cursor-grab active:cursor-grabbing">
+                <video id="preview-video" src="" autoplay loop muted playsinline style="object-position: 50% 50%; transform: scale(1); border-radius: inherit;"></video>
             </div>
             <div class="w-full mt-4 flex flex-col gap-3 text-center">
-                <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/10 text-white px-4 py-3 rounded-xl border border-white/20 focus:outline-none text-sm">
+                <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="crayon-box w-full bg-white text-blue-900 px-4 py-3 text-xl focus:outline-none focus:ring-4 focus:ring-yellow-400/60">
                 <div class="flex gap-2">
-                    <button onclick="closePreviewModal()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl">취소</button>
-                    <button id="upload-btn" onclick="confirmUpload()" class="flex-1 bg-yellow-400 text-gray-900 font-bold py-3 rounded-xl">올리기</button>
+                    <button onclick="closePreviewModal()" class="flex-1 crayon-box bg-gray-200 text-blue-900 text-xl py-3 shadow-md">취소</button>
+                    <button id="upload-btn" onclick="confirmUpload()" class="flex-1 crayon-btn crayon-texture text-blue-900 text-xl py-3">올리기</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Main App -->
-    <div id="main-app" class="w-full max-w-[430px] h-full sm:h-[90dvh] bg-white overflow-hidden shadow-2xl flex flex-col relative hidden opacity-0 transition-opacity duration-500">
+    <div id="main-app" class="w-full max-w-[430px] h-full sm:h-[90dvh] bg-sky-50 overflow-hidden shadow-2xl flex flex-col relative hidden opacity-0 transition-opacity duration-500 crayon-box border-x-0 sm:border-x-4 sm:border-y-4">
         <!-- 상단 헤더 높이 1/2로 축소 (h-[40px], py-1) -->
-        <header class="flex items-center justify-between px-3 py-1.5 z-20 bg-white shadow-sm h-[45px] shrink-0">
+        <header class="flex items-center justify-between px-3 py-1.5 z-20 bg-white/60 backdrop-blur-sm shadow-sm h-[45px] shrink-0 border-b-2 border-blue-900 border-dashed">
             <div class="flex items-center gap-1">
-                <select id="group-select" onchange="handleGroupChange(this.value)" class="font-black text-sm text-gray-800 focus:outline-none bg-transparent cursor-pointer"></select>
+                <select id="group-select" onchange="handleGroupChange(this.value)" class="text-lg text-blue-900 focus:outline-none bg-transparent cursor-pointer"></select>
             </div>
-            <div class="flex items-center gap-1" id="dots-container"></div>
+            <div class="flex items-center gap-1.5" id="dots-container"></div>
             <div class="flex items-center gap-2">
-                <div class="font-bold text-xs text-gray-800" id="current-time-display">--:--</div>
-                <button onclick="logout()" class="bg-gray-200 text-gray-700 text-[10px] px-2 py-1 rounded font-bold hover:bg-gray-300">로그아웃</button>
+                <div class="text-base text-blue-900" id="current-time-display">--:--</div>
+                <button onclick="logout()" class="crayon-box bg-white text-blue-900 text-xs px-2 py-1 shadow-sm hover:bg-gray-100">로그아웃</button>
             </div>
         </header>
         
         <!-- 메인 스크롤 영역 -->
-        <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative items-center"></main>
+        <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-transparent relative items-center crayon-texture"></main>
     </div>
 
     <script>
@@ -233,7 +283,7 @@
                 console.error(err);
                 loadingSpinner.style.display = 'none';
                 loadingText.classList.remove('animate-pulse', 'text-white');
-                loadingText.classList.add('text-pink-400', 'text-xl');
+                loadingText.classList.add('text-pink-600', 'text-2xl');
                 loadingText.innerText = "⚠️ 로딩 중 문제가 발생했습니다";
                 errorDetails.innerText = err.message;
             }
@@ -405,7 +455,7 @@
         // 메인 렌더링 함수
         function renderApp() {
             mainScroll.innerHTML = groupMissions.map(mission => `
-                <div class="min-w-full h-full flex flex-col p-1 gap-1 snap-center justify-center">
+                <div class="min-w-full h-full flex flex-col p-1.5 gap-1.5 snap-center justify-center">
                     ${currentGroupMembers.map(member => {
                         const up = UPLOADS[mission.time]?.[member.id];
                         const isMe = member.id === currentUser.id;
@@ -431,35 +481,35 @@
 
                         // 조원 간격을 최소화하고 중앙 정렬되도록 flex-1 사용
                         return `
-                        <div class="relative flex-1 w-full rounded-[16px] overflow-hidden bg-black shadow-sm flex items-center justify-center">
+                        <div class="crayon-box relative flex-1 w-full overflow-hidden bg-black shadow-sm flex items-center justify-center">
                             ${up ? `
-                                <video src="${up.videoUrl}" autoplay loop muted playsinline style="object-position:${pos}; transform: scale(${scale});"></video>
-                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40"></div>
+                                <video src="${up.videoUrl}" autoplay loop muted playsinline style="object-position:${pos}; transform: scale(${scale}); border-radius: inherit;"></video>
+                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40" style="border-radius: inherit;"></div>
                             ` : `
                                 <div class="noise-bg"></div>
                                 ${isMe ? `
                                     <div class="flex flex-col items-center z-20">
-                                        <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold cursor-pointer text-xs shadow-lg hover:scale-105 transition-transform">
+                                        <label class="crayon-btn crayon-texture text-blue-900 px-5 py-2.5 font-bold cursor-pointer text-base shadow-lg hover:scale-105">
                                             영상 선택
                                             <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}','${mission.topic}')">
                                         </label>
-                                        <span class="text-white/60 text-[8px] mt-1.5 font-bold bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">최대 10MB</span>
+                                        <span class="text-white/80 text-[10px] mt-2 font-bold bg-black/50 px-2 py-1 rounded-full backdrop-blur-sm">최대 10MB</span>
                                     </div>
-                                ` : '<p class="text-white/30 font-bold text-[10px]">WAITING...</p>'}
+                                ` : '<p class="text-white/40 font-bold text-sm">WAITING...</p>'}
                             `}
                             
                             <!-- 내용물 정중앙 및 양방향 정렬 -->
                             <div class="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none">
                                 <div class="flex justify-between items-start">
-                                    <span class="bg-black/50 backdrop-blur-md text-white text-[9px] px-2.5 py-1 rounded-full border border-white/10 shadow-sm">${member.id}</span>
-                                    <span class="text-white/80 text-[9px] drop-shadow-md">${mission.date}</span>
+                                    <span class="bg-black/50 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full border border-white/10 shadow-sm">${member.id}</span>
+                                    <span class="text-white/80 text-xs drop-shadow-md">${mission.date}</span>
                                 </div>
                                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] text-center">
-                                    <h2 class="text-white font-black text-3xl sm:text-4xl" style="text-shadow: 0 2px 10px rgba(0,0,0,0.6)">${mission.time}</h2>
-                                    ${dText ? `<p class="inline-block bg-black/60 backdrop-blur-sm text-white text-[10px] px-3 py-1 rounded-lg mt-1 border border-white/10 max-w-full truncate">${dText}</p>` : ''}
+                                    <h2 class="text-white font-black text-5xl sm:text-6xl crayon-text-shadow tracking-widest">${mission.time}</h2>
+                                    ${dText ? `<p class="inline-block bg-white/80 backdrop-blur-sm text-blue-900 font-bold text-sm px-4 py-1.5 rounded-lg mt-2 border border-white/40 max-w-full truncate crayon-box">${dText}</p>` : ''}
                                 </div>
                                 <div class="flex justify-end">
-                                    <span class="text-white/90 text-[9px] bg-black/40 backdrop-blur-sm px-2 py-1 rounded shadow-sm max-w-[80%] truncate">🎯 ${mission.topic}</span>
+                                    <span class="text-blue-900 font-bold text-xs bg-yellow-400/90 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm max-w-[80%] truncate crayon-box border-none">🎯 ${mission.topic}</span>
                                 </div>
                             </div>
                         </div>`;
@@ -471,7 +521,7 @@
         function updateDots() {
             const idx = Math.round(mainScroll.scrollLeft / mainScroll.clientWidth);
             dotsContainer.innerHTML = groupMissions.map((m, i) => `
-                <div class="transition-all duration-300 ${i === idx ? 'text-yellow-400 scale-125' : 'w-1.5 h-1.5 bg-gray-300 rounded-full'}">
+                <div class="transition-all duration-300 ${i === idx ? 'text-yellow-400 scale-150' : 'w-2 h-2 bg-gray-400/50 rounded-full'}">
                     ${i === idx ? '●' : ''}
                 </div>
             `).join('');
