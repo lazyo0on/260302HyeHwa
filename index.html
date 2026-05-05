@@ -131,6 +131,23 @@
         const previewViewport = document.getElementById('preview-viewport');
         const previewText = document.getElementById('preview-text');
 
+        // ★ 시간 형식 정규화 함수 (1899년 문제 해결)
+        function formatTime(rawStr) {
+            if (!rawStr) return '00:00';
+            let str = String(rawStr);
+            if (str.toLowerCase().includes('1899') || str.toLowerCase().includes('gmt') || str.toLowerCase().includes('sat') || str.toLowerCase().includes('dec')) {
+                const d = new Date(str);
+                if (!isNaN(d)) {
+                    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+                }
+            }
+            const match = str.match(/(\d{1,2}):(\d{2})/);
+            if (match) {
+                return `${match[1].padStart(2, '0')}:${match[2]}`;
+            }
+            return str;
+        }
+
         // 초기화: 데이터 로드
         async function init() {
             try {
@@ -147,7 +164,6 @@
                 try {
                     data = await res.json();
                 } catch(parseErr) {
-                    // JSON 변환에 실패했다면 십중팔구 GAS 권한(구글 로그인 창으로 리다이렉트됨) 문제입니다.
                     throw new Error("❌ 구글 시트 권한 오류!\n\nGAS 배포 시 [액세스할 수 있는 사용자]를 반드시 [모든 사용자]로 설정하고 '새 배포'를 꼭 진행해주세요.");
                 }
 
@@ -155,7 +171,12 @@
                     throw new Error("❌ 구글 시트에서 올바른 데이터를 받지 못했습니다. 시트 내용을 확인하세요.");
                 }
                 MOCK_SHEET_DATA.users = data.users || [];
-                MOCK_SHEET_DATA.missions = data.missions || [];
+                
+                // ★ 시간 오류 수정 반영 (1899년 날짜 제거 및 08:00 형태로 통일)
+                MOCK_SHEET_DATA.missions = (data.missions || []).map(m => ({
+                    ...m,
+                    time: formatTime(m.time)
+                }));
 
                 // 2. Supabase 연동 테스트
                 loadingText.innerText = "Supabase DB 연동 중...";
@@ -168,8 +189,9 @@
                 UPLOADS = {};
                 if (dbUploads) {
                     dbUploads.forEach(item => {
-                        if (!UPLOADS[item.mission_time]) UPLOADS[item.mission_time] = {};
-                        UPLOADS[item.mission_time][item.student_id] = {
+                        const mTime = formatTime(item.mission_time);
+                        if (!UPLOADS[mTime]) UPLOADS[mTime] = {};
+                        UPLOADS[mTime][item.student_id] = {
                             videoUrl: item.video_url,
                             text: `${item.display_text}||POS:${item.object_pos}`
                         };
@@ -256,7 +278,8 @@
                 // 2. Public URL 가져오기
                 const { data: { publicUrl } } = supabaseClient.storage.from('videos').getPublicUrl(fileName);
 
-                // 3. Supabase Database 기록
+                // 3. Supabase Database 기록 
+                // ★ DB에 제약조건(UNIQUE)을 추가했으므로 깔끔한 upsert 한 줄로 처리됩니다.
                 const { error: dbError } = await supabaseClient.from('uploads').upsert({
                     student_id: studentId,
                     mission_time: time,
