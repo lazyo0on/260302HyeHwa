@@ -6,6 +6,8 @@
     <title>현체로그 - 우리들의 체험학습 기록</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- GIF 변환 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/gif.js/dist/gif.js"></script>
     <style>
         /* 블랙 노이즈 애니메이션 */
         @keyframes tv-noise {
@@ -35,8 +37,8 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
         
-        /* 영상 드래그 방지 (기본 브라우저 동작 막기) */
-        video { user-drag: none; -webkit-user-drag: none; }
+        /* 영상 드래그 방지 */
+        video, img { user-drag: none; -webkit-user-drag: none; }
     </style>
 </head>
 <body class="bg-gray-900 font-sans text-gray-800 h-screen overflow-hidden">
@@ -119,7 +121,7 @@
     </div>
 
     <script>
-        // ★ 여기에 새로 배포하신 개인 계정의 웹 앱 URL을 붙여넣으세요! (홑따옴표 유지 필수)
+        // ★ 선생님의 배포 ID 연동 완료
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
         
         let MOCK_SHEET_DATA = { users: [], missions: [] };
@@ -128,7 +130,6 @@
         let currentGroupMembers = [];
         let groupMissions = [];
 
-        // 업로드 시 필요한 임시 상태 저장
         let pendingUploadData = { file: null, time: null, studentId: null };
         let currentObjPos = { x: 50, y: 50 };
 
@@ -145,64 +146,42 @@
         const previewViewport = document.getElementById('preview-viewport');
         const previewText = document.getElementById('preview-text');
 
-        // --- 0. [유틸리티 함수 모음] ---
+        // --- 0. [시간 보정 및 URL 변환] ---
         function normalizeTime(val) {
             if (!val) return "00:00";
             let str = String(val).trim();
             if (str.includes('GMT') || str.includes('Standard Time')) {
                 let d = new Date(str);
-                if (!isNaN(d)) {
-                    return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
-                }
+                if (!isNaN(d)) return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
             }
             let match = str.match(/(\d{1,2}):(\d{2})/);
-            if (match) {
-                return `${parseInt(match[1], 10)}:${match[2].padStart(2, '0')}`;
-            }
+            if (match) return `${parseInt(match[1], 10)}:${match[2].padStart(2, '0')}`;
             return str;
         }
 
         function timeToMinutes(timeStr) {
             let parts = timeStr.split(':');
-            if (parts.length >= 2) {
-                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-            }
+            if (parts.length >= 2) return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
             return 0;
         }
 
-        // ★ 핵심 해결: 구글 드라이브 URL을 순수 동영상 다운로드 링크로 강제 변환
         function getDirectVideoUrl(url) {
             if (!url) return '';
-            // 이미 로컬(스마트폰 내부) blob URL이면 그대로 반환
             if (url.startsWith('blob:')) return url;
-            
             let id = '';
-            // id=... 추출 (예: export=view&id=1y8d0tU7...)
             let match1 = url.match(/id=([a-zA-Z0-9_-]+)/);
-            // /d/... 추출 (예: /file/d/1y8d0tU7.../view)
             let match2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            
             if (match1) id = match1[1];
             else if (match2) id = match2[1];
-            
-            if (id) {
-                // HTML 뷰어가 아닌, 순수 미디어 파일 강제 다운로드 링크로 조립
-                return `https://drive.google.com/uc?export=download&id=${id}`;
-            }
+            if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
             return url;
         }
 
         // --- 1. [데이터 로드] ---
         async function fetchInitialData() {
-            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요' || GAS_WEB_APP_URL === '') {
-                alert("코드(index.html) 상단에 구글 웹 앱 URL을 먼저 입력해주세요!");
-                loadingText.innerText = "URL 설정 필요";
-                return;
-            }
-
             try {
                 const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
-                if (!response.ok) throw new Error("서버 응답 오류 (권한 설정 확인)");
+                if (!response.ok) throw new Error("서버 응답 오류");
                 const data = await response.json();
                 
                 MOCK_SHEET_DATA.users = data.users || [];
@@ -223,24 +202,21 @@
                         uniqueMissionsMap.set(m.time, m);
                     }
                 });
-                
                 groupMissions = Array.from(uniqueMissionsMap.values()).sort((a,b) => timeToMinutes(a.time) - timeToMinutes(b.time));
                 
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
             } catch (error) {
-                alert("데이터를 불러오는데 실패했습니다.\n앱스 스크립트 배포 시 [모든 사용자]로 되어 있는지 확인해주세요!");
-                console.error(error);
-                loadingText.innerText = "연결 오류: 배포 설정을 확인하세요.";
+                alert("데이터를 불러오는데 실패했습니다.");
+                loadingText.innerText = "연결 오류";
             }
         }
 
         window.addEventListener('DOMContentLoaded', fetchInitialData);
 
-        // --- 2. [로그인 및 초기 스크롤 로직] ---
+        // --- 2. [로그인 로직] ---
         function getInitialMissionIndex() {
             if(groupMissions.length === 0) return 0;
-            
             const now = new Date();
             const nowMins = now.getHours() * 60 + now.getMinutes();
 
@@ -250,12 +226,9 @@
                     targetIdx = i;
                 }
             }
-            
             const targetMission = groupMissions[targetIdx];
             if(targetMission && UPLOADS[targetMission.time] && UPLOADS[targetMission.time][currentUser.id]) {
-                if(targetIdx + 1 < groupMissions.length) {
-                    targetIdx++;
-                }
+                if(targetIdx + 1 < groupMissions.length) targetIdx++;
             }
             return targetIdx;
         }
@@ -280,7 +253,6 @@
                     mainApp.classList.remove('hidden');
                     setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
                     renderApp();
-                    
                     const initialIdx = getInitialMissionIndex();
                     setTimeout(() => {
                         scrollToMission(initialIdx);
@@ -292,13 +264,13 @@
             }
         }
 
-        // --- 3. [영상 미리보기 및 드래그(위치 조정) 로직] ---
+        // --- 3. [영상 모달 및 드래그 제어] ---
         window.openPreviewModal = function(inputElement, time, studentId) {
             if (!inputElement.files || inputElement.files.length === 0) return;
             const file = inputElement.files[0];
             
-            if (file.size > 15 * 1024 * 1024) {
-                alert('영상 용량이 너무 큽니다! (15MB 이하로 짧게 찍어주세요)');
+            if (file.size > 20 * 1024 * 1024) {
+                alert('영상 용량이 너무 큽니다! (20MB 이하로 짧게 찍어주세요)');
                 inputElement.value = ''; 
                 return;
             }
@@ -346,41 +318,29 @@
         function handleDragMove(e) {
             if (!isDraggingPreview) return;
             e.preventDefault(); 
-            
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
             const deltaX = clientX - lastClientX;
             const deltaY = clientY - lastClientY;
-            
             const percentMoveX = (deltaX / previewViewport.clientWidth) * 100;
             const percentMoveY = (deltaY / previewViewport.clientHeight) * 100;
-            
-            currentObjPos.x -= percentMoveX;
-            currentObjPos.y -= percentMoveY;
-            
-            currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x));
-            currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y));
-            
+            currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x - percentMoveX));
+            currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y - percentMoveY));
             previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
-            
             lastClientX = clientX;
             lastClientY = clientY;
         }
 
-        function handleDragEnd() {
-            isDraggingPreview = false;
-        }
+        function handleDragEnd() { isDraggingPreview = false; }
 
         previewViewport.addEventListener('mousedown', handleDragStart);
         previewViewport.addEventListener('mousemove', handleDragMove);
         window.addEventListener('mouseup', handleDragEnd);
-
         previewViewport.addEventListener('touchstart', handleDragStart, {passive: false});
         previewViewport.addEventListener('touchmove', handleDragMove, {passive: false});
         window.addEventListener('touchend', handleDragEnd);
 
-        // --- 4. [영상 실제 업로드 로직] ---
+        // --- 4. ★[새로운 기능: 클라이언트 단독 GIF 인코딩 후 업로드]★ ---
         window.confirmUpload = async function() {
             const { file, time, studentId } = pendingUploadData;
             if (!file) return;
@@ -388,55 +348,136 @@
             const textBase = previewText.value.trim();
             const finalPayloadText = `${textBase}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
 
-            previewModal.classList.add('opacity-0');
-            setTimeout(() => previewModal.classList.add('hidden'), 300);
-
-            loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
+            loadingText.innerText = "영상을 움짤(GIF)로 변환 중입니다... (최대 3초)";
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
 
-            const localVideoUrl = URL.createObjectURL(file); 
+            // GIF 변환 모듈 스크립트를 다운로드하여 워커(Worker)로 변환 (CORS 우회)
+            let workerUrl;
+            try {
+                const workerReq = await fetch('https://cdn.jsdelivr.net/npm/gif.js/dist/gif.worker.js');
+                const workerText = await workerReq.text();
+                const workerBlob = new Blob([workerText], {type: 'application/javascript'});
+                workerUrl = URL.createObjectURL(workerBlob);
+            } catch (e) {
+                alert("GIF 변환 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                return;
+            }
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async function() {
-                const base64Data = reader.result.split(',')[1];
-                const extension = file.name.split('.').pop();
-                
-                const payload = {
-                    studentId: studentId,
-                    time: time,
-                    text: finalPayloadText, 
-                    videoBase64: base64Data,
-                    mimeType: file.type,
-                    extension: extension
-                };
+            // 해상도를 낮춰서(240px) 파일 용량을 다이어트하고 변환 속도를 높입니다.
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const targetWidth = 240; 
+            const targetHeight = Math.round(targetWidth * (previewViewport.clientHeight / previewViewport.clientWidth));
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
 
-                try {
-                    const response = await fetch(GAS_WEB_APP_URL, {
-                        method: 'POST',
-                        redirect: "follow",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if(result.success) {
-                        if (!UPLOADS[time]) UPLOADS[time] = {};
-                        UPLOADS[time][studentId] = { videoUrl: localVideoUrl, text: finalPayloadText };
-                        renderApp(); 
-                    } else {
-                        alert("업로드 실패: " + result.error);
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                workerScript: workerUrl,
+                width: targetWidth,
+                height: targetHeight
+            });
+
+            // 영상 재생 및 캔버스에 그리기 시작
+            previewVideo.currentTime = 0;
+            previewVideo.play().then(() => {
+                const captureInterval = 100; // 1초에 10프레임
+                const maxFrames = 30; // 최대 3초 분량
+                let frameCount = 0;
+
+                const captureTask = setInterval(() => {
+                    // 종료 조건 도달 시 캡처 멈추고 렌더링 시작
+                    if (frameCount >= maxFrames || previewVideo.ended || previewVideo.paused) {
+                        clearInterval(captureTask);
+                        previewVideo.pause();
+                        loadingText.innerText = "업로드용 움짤(GIF) 완성 중... 잠시만 기다려주세요!";
+                        gif.render();
+                        return;
                     }
-                } catch (error) {
-                    alert("서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)");
-                    console.error(error);
-                } finally {
-                    loadingScreen.classList.add('opacity-0');
-                    setTimeout(() => loadingScreen.classList.add('hidden'), 300);
-                }
-            };
+
+                    const vidW = previewVideo.videoWidth;
+                    const vidH = previewVideo.videoHeight;
+                    
+                    if(vidW > 0 && vidH > 0) {
+                        const canvasRatio = targetWidth / targetHeight;
+                        const vidRatio = vidW / vidH;
+
+                        let sWidth, sHeight;
+                        if (vidRatio > canvasRatio) {
+                            sHeight = vidH;
+                            sWidth = vidH * canvasRatio;
+                        } else {
+                            sWidth = vidW;
+                            sHeight = vidW / canvasRatio;
+                        }
+
+                        // 사용자가 드래그한 위치(크롭)를 계산하여 정확하게 잘라냄
+                        const sx = (vidW - sWidth) * (currentObjPos.x / 100);
+                        const sy = (vidH - sHeight) * (currentObjPos.y / 100);
+
+                        ctx.drawImage(previewVideo, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+                        gif.addFrame(canvas, { copy: true, delay: captureInterval });
+                        frameCount++;
+                    }
+                }, captureInterval);
+            }).catch(e => {
+                alert("영상 재생에 실패했습니다.");
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+            });
+
+            // GIF 변환 완료 이벤트!
+            gif.on('finished', function(blob) {
+                // 이 시점에서 영상 모달을 닫습니다. (아이폰 강제 정지 버그 방지)
+                previewModal.classList.add('opacity-0');
+                setTimeout(() => previewModal.classList.add('hidden'), 300);
+
+                loadingText.innerText = "서버에 저장 중입니다...";
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onload = async function() {
+                    const base64Data = reader.result.split(',')[1];
+                    const localGifUrl = URL.createObjectURL(blob);
+
+                    const payload = {
+                        studentId: studentId,
+                        time: time,
+                        text: finalPayloadText, 
+                        videoBase64: base64Data,
+                        mimeType: 'image/gif',  // 이제 무조건 GIF로 올라갑니다!
+                        extension: 'gif'
+                    };
+
+                    try {
+                        const response = await fetch(GAS_WEB_APP_URL, {
+                            method: 'POST',
+                            redirect: "follow",
+                            headers: { "Content-Type": "text/plain;charset=utf-8" },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if(result.success) {
+                            if (!UPLOADS[time]) UPLOADS[time] = {};
+                            UPLOADS[time][studentId] = { videoUrl: localGifUrl, text: finalPayloadText };
+                            renderApp(); 
+                        } else {
+                            alert("업로드 실패: " + result.error);
+                        }
+                    } catch (error) {
+                        alert("서버 통신 오류가 발생했습니다. 다시 시도해주세요.");
+                        console.error(error);
+                    } finally {
+                        loadingScreen.classList.add('opacity-0');
+                        setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                    }
+                };
+            });
         }
 
         // --- 5. [화면 렌더링 함수] ---
@@ -491,15 +532,15 @@
                                     objPos = parts[1].replace(',', '% ') + '%';
                                 }
                             }
-                            // ★ URL 변환 함수 적용
                             videoSrc = getDirectVideoUrl(uploadData.videoUrl);
                         }
 
                         return `
                         <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <!-- crossorigin="anonymous" 추가하여 모바일 환경 교차출처 비디오 로드 버그 방지 -->
-                                <video src="${videoSrc}" autoplay loop muted playsinline preload="auto" crossorigin="anonymous" class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
+                                <!-- ★해결의 핵심: 비디오(<video>) 태그를 이미지(<img>) 태그로 변경★ -->
+                                <!-- 이미지는 CORS나 브라우저 자동 재생 정책에 걸리지 않아 완벽하게 재생됩니다. -->
+                                <img src="${videoSrc}" class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};" />
                                 <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0 pointer-events-none"></div>
                             ` : `
                                 <div class="noise-bg pointer-events-none"></div>
@@ -556,18 +597,7 @@
                     }).join('')}
                 </div>
             `).join('');
-
-            setTimeout(() => {
-                const videos = document.querySelectorAll('#main-scroll video');
-                videos.forEach(vid => {
-                    vid.muted = true;
-                    vid.playsInline = true;
-                    const playPromise = vid.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(e => console.log('재생 대기중...', e));
-                    }
-                });
-            }, 100);
+            // 이제 더 이상 비디오 태그 강제 플레이 로직이 필요하지 않으므로 삭제되었습니다.
         }
 
         // --- 6. [스크롤 조작 지원] ---
