@@ -39,11 +39,12 @@
 
     <!-- Loading Screen -->
     <div id="loading-screen" class="absolute inset-0 z-[70] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
-        <svg class="animate-spin h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg id="loading-spinner" class="animate-spin h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse">데이터를 불러오는 중입니다...</p>
+        <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse text-center px-6">데이터를 불러오는 중입니다...</p>
+        <p id="error-details" class="text-xs text-red-400 mt-4 px-6 text-center whitespace-pre-wrap"></p>
     </div>
 
     <!-- Login Screen -->
@@ -94,14 +95,15 @@
 
     <script>
         /**
-         * ★ 수파베이스 설정 (본인의 프로젝트 정보로 교체하세요)
+         * ★ 수파베이스 설정
+         * 주의: SUPABASE_KEY는 반드시 eyJ... 로 시작하는 anon public 키여야 합니다!
          */
         const SUPABASE_URL = 'https://bjlzzklznnihluucjqei.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqbHp6a2x6bm5paGx1dWNqcWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NTY3NTAsImV4cCI6MjA5MzUzMjc1MH0.YEeTAZzNUMA5tRFzDoFgvkix5oNy03KRmJT3owLVrIU';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqbHp6a2x6bm5paGx1dWNqcWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NTY3NTAsImV4cCI6MjA5MzUzMjc1MH0.YEeTAZzNUMA5tRFzDoFgvkix5oNy03KRmJT3owLVrIU'; // ★ 수정 필수 ★
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         /**
-         * ★ 기존 GAS URL (시트 기록용)
+         * ★ 구글 앱스 스크립트(GAS) URL
          */
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec';
 
@@ -121,32 +123,50 @@
         const currentTimeDisplay = document.getElementById('current-time-display');
         const loadingScreen = document.getElementById('loading-screen');
         const loadingText = document.getElementById('loading-text');
+        const errorDetails = document.getElementById('error-details');
+        const loadingSpinner = document.getElementById('loading-spinner');
         const previewModal = document.getElementById('preview-modal');
         const previewVideo = document.getElementById('preview-video');
         const previewViewport = document.getElementById('preview-viewport');
         const previewText = document.getElementById('preview-text');
 
-        // 초기화: 데이터 로드
+        // 초기화: 데이터 로드 (에러 추적 강화)
         async function init() {
             try {
-                // 1. 유저 및 미션 정보 로드 (기존 GAS 활용)
-                const res = await fetch(GAS_WEB_APP_URL);
+                // 1. 구글 시트 데이터 로드 테스트
+                loadingText.innerText = "구글 시트 데이터 연동 중...";
+                let res;
+                try {
+                    res = await fetch(GAS_WEB_APP_URL);
+                } catch (gasErr) {
+                    throw new Error("❌ 구글 시트 연결 실패!\nGAS 배포 권한이 '모든 사용자'인지 확인하세요.");
+                }
+                
                 const data = await res.json();
+                if (!data || !data.users) {
+                    throw new Error("❌ 구글 시트에서 올바른 데이터를 받지 못했습니다. 시트 내용을 확인하세요.");
+                }
                 MOCK_SHEET_DATA.users = data.users || [];
                 MOCK_SHEET_DATA.missions = data.missions || [];
 
-                // 2. Supabase에서 업로드된 영상 기록 실시간 로드
+                // 2. Supabase 연동 테스트
+                loadingText.innerText = "Supabase DB 연동 중...";
                 const { data: dbUploads, error } = await supabase.from('uploads').select('*');
-                if (error) throw error;
+                
+                if (error) {
+                    throw new Error(`❌ Supabase 에러!\n${error.message}\n(테이블이 없거나 API 키가 잘못되었을 수 있습니다.)`);
+                }
 
                 UPLOADS = {};
-                dbUploads.forEach(item => {
-                    if (!UPLOADS[item.mission_time]) UPLOADS[item.mission_time] = {};
-                    UPLOADS[item.mission_time][item.student_id] = {
-                        videoUrl: item.video_url,
-                        text: `${item.display_text}||POS:${item.object_pos}`
-                    };
-                });
+                if (dbUploads) {
+                    dbUploads.forEach(item => {
+                        if (!UPLOADS[item.mission_time]) UPLOADS[item.mission_time] = {};
+                        UPLOADS[item.mission_time][item.student_id] = {
+                            videoUrl: item.video_url,
+                            text: `${item.display_text}||POS:${item.object_pos}`
+                        };
+                    });
+                }
 
                 // 미션 정렬 및 필터링
                 const seen = new Map();
@@ -157,11 +177,18 @@
                     return (t1[0]*60 + t1[1]) - (t2[0]*60 + t2[1]);
                 });
 
+                // 성공 시 로딩 화면 닫기
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                
             } catch (err) {
                 console.error(err);
-                alert("초기 로딩 실패. 설정을 확인하세요.");
+                // 에러 화면에 띄우기
+                loadingSpinner.style.display = 'none';
+                loadingText.classList.remove('animate-pulse', 'text-white');
+                loadingText.classList.add('text-pink-400', 'text-lg');
+                loadingText.innerText = "⚠️ 로딩 중 문제가 발생했습니다.";
+                errorDetails.innerText = err.message;
             }
         }
         window.onload = init;
@@ -216,7 +243,7 @@
                     .from('videos')
                     .upload(fileName, file);
 
-                if (storageError) throw storageError;
+                if (storageError) throw new Error("Storage 업로드 에러: " + storageError.message);
 
                 // 2. Public URL 가져오기
                 const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(fileName);
@@ -231,7 +258,7 @@
                     object_pos: `${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`
                 }, { onConflict: 'student_id, mission_time' });
 
-                if (dbError) throw dbError;
+                if (dbError) throw new Error("DB 기록 에러: " + dbError.message);
 
                 // 4. 기존 구글 시트 기록 유지 (백업용 비동기 호출)
                 fetch(GAS_WEB_APP_URL, {
@@ -276,6 +303,7 @@
         function handleGroupChange(g) {
             currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === g);
             renderApp();
+            scrollToMission(0);
         }
 
         function renderApp() {
