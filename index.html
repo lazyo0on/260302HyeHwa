@@ -140,17 +140,15 @@
             return p.length >= 2 ? parseInt(p[0],10)*60 + parseInt(p[1],10) : 0;
         }
 
-        // ★ 핵심 수정: Drive 파일 ID를 lh3 URL로 변환
-        // lh3.googleusercontent.com/d/{ID} 는 CORS 없이 <video> 태그에서 직접 재생됩니다.
+        // Drive URL에서 파일 ID 추출 후 export=view URL로 통일
+        // export=view: 브라우저에서 인라인 재생 (다운로드 아님)
         function getDriveStreamUrl(url) {
             if (!url) return '';
-            if (url.startsWith('blob:')) return url; // 로컬 임시 URL은 그대로
-            let id = '';
+            if (url.startsWith('blob:')) return url;
             const m1 = url.match(/id=([a-zA-Z0-9_-]+)/);
             const m2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (m1) id = m1[1];
-            else if (m2) id = m2[1];
-            if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+            const id = m1?.[1] ?? m2?.[1] ?? '';
+            if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
             return url;
         }
 
