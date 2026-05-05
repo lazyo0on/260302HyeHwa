@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>현체로그 - 우리들의 체험학습 기록</title>
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 블랙 노이즈 애니메이션 */
         @keyframes tv-noise {
             0%, 100% { transform: translate(0, 0); }
             10% { transform: translate(-5%, -5%); }
@@ -30,13 +28,10 @@
             width: 200%; height: 200%;
             z-index: 0;
         }
-        /* 스크롤바 숨기기 */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         html { scroll-behavior: smooth; }
-        
-        /* 영상 드래그 방지 */
-        video, img { user-drag: none; -webkit-user-drag: none; }
+        video { user-drag: none; -webkit-user-drag: none; }
     </style>
 </head>
 <body class="bg-gray-900 font-sans text-gray-800 h-screen overflow-hidden">
@@ -55,10 +50,8 @@
         <div class="w-full max-w-xs text-center">
             <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-lg">현체로그</h1>
             <p class="text-gray-400 text-sm mb-10">우리 조의 체험학습 기록장</p>
-            
             <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-4 rounded-2xl mb-3 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
             <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-4 rounded-2xl mb-6 text-gray-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-400/50">
-            
             <button onclick="handleLogin()" class="w-full bg-yellow-400 text-gray-900 font-black text-lg py-4 rounded-2xl shadow-[0_4px_14px_0_rgba(250,204,21,0.39)] hover:scale-[1.02] active:scale-[0.98] transition-transform">
                 시작하기
             </button>
@@ -66,17 +59,14 @@
         </div>
     </div>
 
-    <!-- 영상 위치 조정(크롭) 및 업로드 모달 -->
+    <!-- 영상 위치 조정 모달 -->
     <div id="preview-modal" class="absolute inset-0 z-[65] bg-gray-900/95 flex flex-col items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
         <div class="w-full max-w-[400px] flex flex-col items-center">
             <h2 class="text-white font-bold text-lg mb-2">영상의 보여질 부분을 드래그하세요</h2>
             <p class="text-gray-400 text-xs mb-4">터치하여 원하는 위치로 화면을 옮길 수 있습니다.</p>
-            
-            <!-- 드래그 뷰포트 -->
             <div id="preview-viewport" class="relative w-full rounded-[24px] overflow-hidden bg-black shadow-lg border border-white/20 cursor-move touch-none">
                 <video id="preview-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover pointer-events-none" style="object-position: 50% 50%;"></video>
             </div>
-            
             <div class="w-full mt-6 flex flex-col gap-3">
                 <input type="text" id="preview-text" placeholder="짧은 한 줄 남기기 (선택)" maxlength="20" class="w-full bg-white/10 text-white placeholder-gray-400 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center border border-white/20">
                 <div class="flex gap-2">
@@ -87,229 +77,178 @@
         </div>
     </div>
 
-    <!-- 메인 앱 화면 -->
+    <!-- 메인 앱 -->
     <div id="main-app" class="flex justify-center items-center h-screen hidden opacity-0 transition-opacity duration-500">
         <div class="relative w-full max-w-[430px] h-full sm:h-[90vh] sm:rounded-[40px] bg-white overflow-hidden shadow-2xl flex flex-col sm:border-[8px] border-yellow-300 border-opacity-80">
-            
-            <!-- 상단 헤더 -->
             <header class="flex items-center justify-between px-4 py-3 sm:py-4 z-20 bg-white shadow-sm shrink-0 h-[60px]">
                 <div class="relative flex items-center">
-                    <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative">
-                        <!-- JS로 채워짐 -->
-                    </select>
+                    <select id="group-select" onchange="handleGroupChange(this.value)" class="appearance-none bg-transparent font-black text-sm text-gray-800 pr-5 cursor-pointer focus:outline-none z-10 relative"></select>
                     <div class="pointer-events-none absolute right-0 flex items-center text-gray-800 z-0">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5" id="dots-container">
-                    <!-- JS로 생성 -->
-                </div>
-                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">
-                    --:--
-                </div>
+                <div class="flex items-center gap-1.5" id="dots-container"></div>
+                <div class="font-bold text-sm tracking-wider text-gray-800" id="current-time-display">--:--</div>
             </header>
-
-            <!-- 메인 콘텐츠 -->
-            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative h-[calc(100%-60px-24px)]">
-                <!-- JS로 생성 -->
-            </main>
-            
+            <main id="main-scroll" class="flex-1 flex overflow-x-auto snap-x snap-mandatory hide-scrollbar bg-gray-100 relative h-[calc(100%-60px-24px)]"></main>
             <div class="h-6 bg-white w-full shrink-0"></div>
         </div>
     </div>
 
     <script>
-        // ★ 여기에 새로 배포하신 개인 계정의 웹 앱 URL을 붙여넣으세요! (홑따옴표 유지 필수)
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec'; 
-        
+        // ★ 웹앱 URL을 여기에 입력하세요
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkbW4tdx3w7UL4_CkQSPG33g5rOTudGJ38NkZHcVfgplwgL6Rn-HFW0WCGT15Orongyw/exec';
+
         let MOCK_SHEET_DATA = { users: [], missions: [] };
         let UPLOADS = {};
         let currentUser = null;
         let currentGroupMembers = [];
         let groupMissions = [];
-
-        // 업로드 시 필요한 임시 상태 저장
         let pendingUploadData = { file: null, time: null, studentId: null };
         let currentObjPos = { x: 50, y: 50 };
 
-        const loginScreen = document.getElementById('login-screen');
-        const mainApp = document.getElementById('main-app');
-        const mainScroll = document.getElementById('main-scroll');
-        const dotsContainer = document.getElementById('dots-container');
-        const groupSelect = document.getElementById('group-select');
+        const loginScreen    = document.getElementById('login-screen');
+        const mainApp        = document.getElementById('main-app');
+        const mainScroll     = document.getElementById('main-scroll');
+        const dotsContainer  = document.getElementById('dots-container');
+        const groupSelect    = document.getElementById('group-select');
         const currentTimeDisplay = document.getElementById('current-time-display');
-        const loadingScreen = document.getElementById('loading-screen');
-        const loadingText = document.getElementById('loading-text');
-        const previewModal = document.getElementById('preview-modal');
-        const previewVideo = document.getElementById('preview-video');
+        const loadingScreen  = document.getElementById('loading-screen');
+        const loadingText    = document.getElementById('loading-text');
+        const previewModal   = document.getElementById('preview-modal');
+        const previewVideo   = document.getElementById('preview-video');
         const previewViewport = document.getElementById('preview-viewport');
-        const previewText = document.getElementById('preview-text');
+        const previewText    = document.getElementById('preview-text');
 
-        // --- 0. [시간 보정 및 URL 변환] ---
+        // ── 유틸 ──────────────────────────────────────────────────────────
         function normalizeTime(val) {
-            if (!val) return "00:00";
-            let str = String(val).trim();
+            if (!val) return '00:00';
+            const str = String(val).trim();
+            // Date 객체 문자열(GMT 포함)인 경우
             if (str.includes('GMT') || str.includes('Standard Time')) {
-                let d = new Date(str);
-                if (!isNaN(d)) return `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                const d = new Date(str);
+                if (!isNaN(d)) return `${d.getHours()}:${d.getMinutes().toString().padStart(2,'0')}`;
             }
-            let match = str.match(/(\d{1,2}):(\d{2})/);
-            if (match) return `${parseInt(match[1], 10)}:${match[2].padStart(2, '0')}`;
+            // HH:MM 추출
+            const m = str.match(/(\d{1,2}):(\d{2})/);
+            if (m) return `${parseInt(m[1],10)}:${m[2]}`;
             return str;
         }
 
-        function timeToMinutes(timeStr) {
-            let parts = timeStr.split(':');
-            if (parts.length >= 2) return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-            return 0;
+        function timeToMinutes(t) {
+            const p = t.split(':');
+            return p.length >= 2 ? parseInt(p[0],10)*60 + parseInt(p[1],10) : 0;
         }
 
-        function getDirectVideoUrl(url) {
+        // ★ 핵심 수정: Drive 파일 ID를 lh3 URL로 변환
+        // lh3.googleusercontent.com/d/{ID} 는 CORS 없이 <video> 태그에서 직접 재생됩니다.
+        function getDriveStreamUrl(url) {
             if (!url) return '';
-            if (url.startsWith('blob:')) return url;
+            if (url.startsWith('blob:')) return url; // 로컬 임시 URL은 그대로
             let id = '';
-            let match1 = url.match(/id=([a-zA-Z0-9_-]+)/);
-            let match2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (match1) id = match1[1];
-            else if (match2) id = match2[1];
-            
-            // <video> 태그에서 직접 재생되려면 export=download 속성이 필수적입니다!
-            if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+            const m1 = url.match(/id=([a-zA-Z0-9_-]+)/);
+            const m2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (m1) id = m1[1];
+            else if (m2) id = m2[1];
+            if (id) return `https://lh3.googleusercontent.com/d/${id}`;
             return url;
         }
 
-        // --- 1. [데이터 로드] ---
+        // ── 1. 데이터 로드 ────────────────────────────────────────────────
         async function fetchInitialData() {
-            if(GAS_WEB_APP_URL === '여기에_웹앱_URL을_붙여넣으세요' || GAS_WEB_APP_URL === '') {
-                alert("코드(index.html) 상단에 구글 웹 앱 URL을 먼저 입력해주세요!");
-                loadingText.innerText = "URL 설정 필요";
-                return;
-            }
-
             try {
-                const response = await fetch(GAS_WEB_APP_URL + "?t=" + new Date().getTime());
-                if (!response.ok) throw new Error("서버 응답 오류 (권한 설정 확인)");
-                const data = await response.json();
-                
-                MOCK_SHEET_DATA.users = data.users || [];
-                
-                let rawMissions = data.missions || [];
-                rawMissions.forEach(m => { m.time = normalizeTime(m.time); });
+                const res = await fetch(GAS_WEB_APP_URL + '?t=' + Date.now());
+                if (!res.ok) throw new Error('서버 응답 오류');
+                const data = await res.json();
 
-                let rawUploads = data.uploads || {};
+                MOCK_SHEET_DATA.users    = data.users    || [];
+                MOCK_SHEET_DATA.missions = data.missions || [];
+
+                // 시간 정규화
+                MOCK_SHEET_DATA.missions.forEach(m => { m.time = normalizeTime(m.time); });
+
+                // 업로드 기록 시간 키도 정규화
                 UPLOADS = {};
-                for(let timeKey in rawUploads) {
-                    let normTime = normalizeTime(timeKey);
-                    UPLOADS[normTime] = rawUploads[timeKey];
+                for (const rawKey in (data.uploads || {})) {
+                    UPLOADS[normalizeTime(rawKey)] = data.uploads[rawKey];
                 }
 
-                const uniqueMissionsMap = new Map();
-                rawMissions.forEach(m => {
-                    if(!uniqueMissionsMap.has(m.time)) {
-                        uniqueMissionsMap.set(m.time, m);
-                    }
-                });
-                
-                groupMissions = Array.from(uniqueMissionsMap.values()).sort((a,b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-                
+                // 미션 중복 제거 후 시간순 정렬
+                const seen = new Map();
+                MOCK_SHEET_DATA.missions.forEach(m => { if (!seen.has(m.time)) seen.set(m.time, m); });
+                groupMissions = Array.from(seen.values()).sort((a,b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+
                 loadingScreen.classList.add('opacity-0');
                 setTimeout(() => loadingScreen.classList.add('hidden'), 300);
-            } catch (error) {
-                alert("데이터를 불러오는데 실패했습니다.\n앱스 스크립트 배포 시 [모든 사용자]로 되어 있는지 확인해주세요!");
-                console.error(error);
-                loadingText.innerText = "연결 오류: 배포 설정을 확인하세요.";
+            } catch (err) {
+                console.error(err);
+                loadingText.innerText = '연결 오류: 배포 설정을 확인하세요.';
+                alert('데이터를 불러오는데 실패했습니다.\n앱스 스크립트 배포 시 [액세스할 수 있는 사용자]가 [모든 사용자]로 되어 있는지 확인해주세요!');
             }
         }
-
         window.addEventListener('DOMContentLoaded', fetchInitialData);
 
-        // --- 2. [로그인 및 초기 스크롤 로직] ---
+        // ── 2. 로그인 ─────────────────────────────────────────────────────
         function getInitialMissionIndex() {
-            if(groupMissions.length === 0) return 0;
-            
-            const now = new Date();
-            const nowMins = now.getHours() * 60 + now.getMinutes();
-
-            let targetIdx = 0;
-            for(let i = 0; i < groupMissions.length; i++) {
-                if(timeToMinutes(groupMissions[i].time) <= nowMins) {
-                    targetIdx = i;
-                }
+            if (!groupMissions.length) return 0;
+            const nowMins = new Date().getHours()*60 + new Date().getMinutes();
+            let idx = 0;
+            for (let i = 0; i < groupMissions.length; i++) {
+                if (timeToMinutes(groupMissions[i].time) <= nowMins) idx = i;
             }
-            
-            const targetMission = groupMissions[targetIdx];
-            if(targetMission && UPLOADS[targetMission.time] && UPLOADS[targetMission.time][currentUser.id]) {
-                if(targetIdx + 1 < groupMissions.length) {
-                    targetIdx++;
-                }
-            }
-            return targetIdx;
+            const m = groupMissions[idx];
+            if (m && UPLOADS[m.time]?.[currentUser.id] && idx+1 < groupMissions.length) idx++;
+            return idx;
         }
 
         window.handleLogin = function() {
-            const idInput = document.getElementById('login-id').value.trim();
-            const pwInput = document.getElementById('login-pw').value.trim();
-            const errorMsg = document.getElementById('login-error');
-
-            const user = MOCK_SHEET_DATA.users.find(u => u.id === idInput && u.pw === pwInput);
+            const id  = document.getElementById('login-id').value.trim();
+            const pw  = document.getElementById('login-pw').value.trim();
+            const err = document.getElementById('login-error');
+            const user = MOCK_SHEET_DATA.users.find(u => u.id === id && u.pw === pw);
 
             if (user) {
                 currentUser = user;
                 currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === user.group);
-
                 populateGroupDropdown();
-                errorMsg.classList.add('hidden');
+                err.classList.add('hidden');
                 loginScreen.classList.add('opacity-0');
-                
                 setTimeout(() => {
                     loginScreen.classList.add('hidden');
                     mainApp.classList.remove('hidden');
                     setTimeout(() => mainApp.classList.remove('opacity-0'), 50);
                     renderApp();
-                    
-                    const initialIdx = getInitialMissionIndex();
-                    setTimeout(() => {
-                        scrollToMission(initialIdx);
-                        updateActiveDot(initialIdx);
-                    }, 100);
+                    const idx = getInitialMissionIndex();
+                    setTimeout(() => { scrollToMission(idx); updateActiveDot(idx); }, 100);
                 }, 500);
             } else {
-                errorMsg.classList.remove('hidden');
+                err.classList.remove('hidden');
             }
-        }
+        };
 
-        // --- 3. [영상 미리보기 및 드래그(위치 조정) 로직] ---
-        window.openPreviewModal = function(inputElement, time, studentId) {
-            if (!inputElement.files || inputElement.files.length === 0) return;
-            const file = inputElement.files[0];
-            
-            if (file.size > 20 * 1024 * 1024) {
-                alert('영상 용량이 너무 큽니다! (20MB 이하로 짧게 찍어주세요)');
-                inputElement.value = ''; 
+        // ── 3. 영상 미리보기 모달 ─────────────────────────────────────────
+        window.openPreviewModal = function(inputEl, time, studentId) {
+            if (!inputEl.files?.length) return;
+            const file = inputEl.files[0];
+
+            if (file.size > 30 * 1024 * 1024) {
+                alert('영상 용량이 너무 큽니다! (30MB 이하로 올려주세요)');
+                inputEl.value = '';
                 return;
             }
 
             pendingUploadData = { file, time, studentId };
             currentObjPos = { x: 50, y: 50 };
             previewVideo.style.objectPosition = '50% 50%';
-            
-            const uploadData = UPLOADS[time] && UPLOADS[time][studentId];
-            if(uploadData && uploadData.text) {
-                const parts = uploadData.text.split('||POS:');
-                previewText.value = parts[0];
-            } else {
-                previewText.value = '';
-            }
 
-            const videoUrl = URL.createObjectURL(file);
-            previewVideo.src = videoUrl;
+            const existing = UPLOADS[time]?.[studentId];
+            previewText.value = existing?.text ? existing.text.split('||POS:')[0] : '';
 
-            const viewportHeight = Math.max(120, mainScroll.clientHeight / currentGroupMembers.length);
-            previewViewport.style.height = `${viewportHeight}px`;
-
+            previewVideo.src = URL.createObjectURL(file);
+            previewViewport.style.height = `${Math.max(120, mainScroll.clientHeight / currentGroupMembers.length)}px`;
             previewModal.classList.remove('hidden');
             setTimeout(() => previewModal.classList.remove('opacity-0'), 10);
-        }
+        };
 
         window.closePreviewModal = function() {
             previewModal.classList.add('opacity-0');
@@ -318,187 +257,149 @@
                 previewVideo.src = '';
                 pendingUploadData = { file: null, time: null, studentId: null };
             }, 300);
-        }
+        };
 
-        let isDraggingPreview = false;
-        let lastClientX, lastClientY;
-
-        function handleDragStart(e) {
-            isDraggingPreview = true;
-            lastClientX = e.touches ? e.touches[0].clientX : e.clientX;
-            lastClientY = e.touches ? e.touches[0].clientY : e.clientY;
-        }
-
-        function handleDragMove(e) {
-            if (!isDraggingPreview) return;
-            e.preventDefault(); 
-            
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const deltaX = clientX - lastClientX;
-            const deltaY = clientY - lastClientY;
-            
-            const percentMoveX = (deltaX / previewViewport.clientWidth) * 100;
-            const percentMoveY = (deltaY / previewViewport.clientHeight) * 100;
-            
-            currentObjPos.x -= percentMoveX;
-            currentObjPos.y -= percentMoveY;
-            
-            currentObjPos.x = Math.max(0, Math.min(100, currentObjPos.x));
-            currentObjPos.y = Math.max(0, Math.min(100, currentObjPos.y));
-            
+        // 드래그 조작
+        let isDragging = false, lastX, lastY;
+        const onDragStart = e => { isDragging=true; lastX = e.touches?.[0].clientX??e.clientX; lastY = e.touches?.[0].clientY??e.clientY; };
+        const onDragMove  = e => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const cx = e.touches?.[0].clientX??e.clientX;
+            const cy = e.touches?.[0].clientY??e.clientY;
+            currentObjPos.x = Math.max(0,Math.min(100, currentObjPos.x - (cx-lastX)/previewViewport.clientWidth*100));
+            currentObjPos.y = Math.max(0,Math.min(100, currentObjPos.y - (cy-lastY)/previewViewport.clientHeight*100));
             previewVideo.style.objectPosition = `${currentObjPos.x}% ${currentObjPos.y}%`;
-            
-            lastClientX = clientX;
-            lastClientY = clientY;
-        }
+            lastX=cx; lastY=cy;
+        };
+        const onDragEnd = () => { isDragging = false; };
+        previewViewport.addEventListener('mousedown',  onDragStart);
+        previewViewport.addEventListener('mousemove',  onDragMove);
+        previewViewport.addEventListener('touchstart', onDragStart, {passive:false});
+        previewViewport.addEventListener('touchmove',  onDragMove,  {passive:false});
+        window.addEventListener('mouseup',  onDragEnd);
+        window.addEventListener('touchend', onDragEnd);
 
-        function handleDragEnd() {
-            isDraggingPreview = false;
-        }
-
-        previewViewport.addEventListener('mousedown', handleDragStart);
-        previewViewport.addEventListener('mousemove', handleDragMove);
-        window.addEventListener('mouseup', handleDragEnd);
-
-        previewViewport.addEventListener('touchstart', handleDragStart, {passive: false});
-        previewViewport.addEventListener('touchmove', handleDragMove, {passive: false});
-        window.addEventListener('touchend', handleDragEnd);
-
-        // --- 4. [영상 실제 업로드 로직 (원본 동영상 방식 롤백)] ---
+        // ── 4. 업로드 ─────────────────────────────────────────────────────
         window.confirmUpload = async function() {
             const { file, time, studentId } = pendingUploadData;
             if (!file) return;
 
-            const textBase = previewText.value.trim();
-            const finalPayloadText = `${textBase}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
+            const posText = `${previewText.value.trim()}||POS:${Math.round(currentObjPos.x)},${Math.round(currentObjPos.y)}`;
 
             previewModal.classList.add('opacity-0');
             setTimeout(() => previewModal.classList.add('hidden'), 300);
 
-            loadingText.innerText = "영상을 업로드 중입니다... 잠시만 기다려주세요!";
+            // ① 로컬 URL로 즉시 화면에 표시 (업로드 완료 기다리지 않음)
+            const localUrl = URL.createObjectURL(file);
+            if (!UPLOADS[time]) UPLOADS[time] = {};
+            UPLOADS[time][studentId] = { videoUrl: localUrl, text: posText };
+            renderApp();
+
+            // ② 백그라운드에서 Drive 업로드
+            loadingText.innerText = '영상을 업로드 중입니다... 잠시만 기다려주세요!';
             loadingScreen.classList.remove('hidden');
             setTimeout(() => loadingScreen.classList.remove('opacity-0'), 10);
 
-            // 업로드 즉시 내 기기에서는 딜레이 없이 영상을 재생하기 위한 임시 로컬 URL
-            const localVideoUrl = URL.createObjectURL(file); 
+            try {
+                const base64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload  = () => res(r.result.split(',')[1]);
+                    r.onerror = rej;
+                    r.readAsDataURL(file);
+                });
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async function() {
-                const base64Data = reader.result.split(',')[1];
-                const extension = file.name.split('.').pop();
-                
                 const payload = {
-                    studentId: studentId,
-                    time: time,
-                    text: finalPayloadText, 
-                    videoBase64: base64Data,
+                    studentId, time, text: posText,
+                    videoBase64: base64,
                     mimeType: file.type,
-                    extension: extension
+                    extension: file.name.split('.').pop()
                 };
 
-                try {
-                    const response = await fetch(GAS_WEB_APP_URL, {
-                        method: 'POST',
-                        redirect: "follow",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if(result.success) {
-                        if (!UPLOADS[time]) UPLOADS[time] = {};
-                        // ★수정됨: 시트 저장용 result.videoUrl을 기록하되, 로컬에서 즉시 뷰어를 위해 localUrl 추가
-                        UPLOADS[time][studentId] = { videoUrl: result.videoUrl, text: finalPayloadText, localUrl: localVideoUrl };
-                        renderApp(); 
-                    } else {
-                        alert("업로드 실패: " + result.error);
-                    }
-                } catch (error) {
-                    alert("서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)");
-                    console.error(error);
-                } finally {
-                    loadingScreen.classList.add('opacity-0');
-                    setTimeout(() => loadingScreen.classList.add('hidden'), 300);
+                const res  = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST', redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    // ③ Drive URL(lh3 변환)로 교체 → 다른 기기/새로고침 후에도 재생됨
+                    UPLOADS[time][studentId].videoUrl = getDriveStreamUrl(result.videoUrl);
+                } else {
+                    alert('업로드 실패: ' + result.error);
+                    delete UPLOADS[time][studentId];
+                    renderApp();
                 }
-            };
-        }
-
-        // --- 5. [화면 렌더링 함수] ---
-        function populateGroupDropdown() {
-            const uniqueGroups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
-            groupSelect.innerHTML = uniqueGroups.map(g => `<option value="${g}">${g}</option>`).join('');
-            groupSelect.value = currentUser.group; 
-        }
-
-        window.handleGroupChange = function(groupName) {
-            currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === groupName);
-            renderApp();
-            
-            if (groupMissions.length > 0) {
-                const idx = getInitialMissionIndex();
-                setTimeout(() => scrollToMission(idx), 50);
+            } catch (err) {
+                console.error(err);
+                alert('서버 통신 오류가 발생했습니다. (영상이 너무 클 수 있습니다)');
+                delete UPLOADS[time][studentId];
+                renderApp();
+            } finally {
+                loadingScreen.classList.add('opacity-0');
+                setTimeout(() => loadingScreen.classList.add('hidden'), 300);
             }
+        };
+
+        // ── 5. 렌더링 ─────────────────────────────────────────────────────
+        function populateGroupDropdown() {
+            const groups = [...new Set(MOCK_SHEET_DATA.users.map(u => u.group))];
+            groupSelect.innerHTML = groups.map(g => `<option value="${g}">${g}</option>`).join('');
+            groupSelect.value = currentUser.group;
         }
+
+        window.handleGroupChange = function(g) {
+            currentGroupMembers = MOCK_SHEET_DATA.users.filter(u => u.group === g);
+            renderApp();
+            if (groupMissions.length) setTimeout(() => scrollToMission(getInitialMissionIndex()), 50);
+        };
 
         function renderApp() {
-            if(groupMissions.length === 0) {
+            if (!groupMissions.length) {
                 mainScroll.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-400 font-bold">배정된 미션이 없습니다.</div>`;
                 return;
             }
 
-            dotsContainer.innerHTML = groupMissions.map((_, idx) => `
-                <button onclick="scrollToMission(${idx})" 
-                        class="dot-btn transition-all duration-300 flex items-center justify-center ${idx === 0 ? 'text-yellow-400 scale-125' : 'w-2 h-2 rounded-full bg-gray-200'}"
-                        data-index="${idx}">
-                    ${idx === 0 ? '🙂' : ''}
-                </button>
-            `).join('');
-
+            dotsContainer.innerHTML = groupMissions.map((_, i) => `
+                <button onclick="scrollToMission(${i})" data-index="${i}"
+                    class="dot-btn transition-all duration-300 flex items-center justify-center ${i===0?'text-yellow-400 scale-125':'w-2 h-2 rounded-full bg-gray-200'}">
+                    ${i===0?'🙂':''}
+                </button>`).join('');
             currentTimeDisplay.innerText = groupMissions[0].time;
 
-            mainScroll.innerHTML = groupMissions.map((mission, mIdx) => `
-                <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center relative">
+            mainScroll.innerHTML = groupMissions.map(mission => `
+                <div class="min-w-full h-full flex flex-col p-2 gap-2 snap-center">
                     ${currentGroupMembers.map(member => {
-                        const isUploaded = UPLOADS[mission.time] && UPLOADS[mission.time][member.id];
-                        const uploadData = isUploaded ? UPLOADS[mission.time][member.id] : null;
+                        const uploadData = UPLOADS[mission.time]?.[member.id] ?? null;
                         const isMe = member.id === currentUser.id;
 
-                        let displayStr = '';
-                        let objPos = '50% 50%';
-                        let videoSrc = '';
-
-                        if(uploadData) {
-                            if(uploadData.text) {
-                                const parts = uploadData.text.split('||POS:');
-                                displayStr = parts[0];
-                                if(parts[1]) {
-                                    objPos = parts[1].replace(',', '% ') + '%';
-                                }
-                            }
-                            // 방금 본인이 업로드한 경우 임시 로컬 URL을 우선 사용하고, 새로고침 시 드라이브 URL을 불러옵니다.
-                            videoSrc = uploadData.localUrl ? uploadData.localUrl : getDirectVideoUrl(uploadData.videoUrl);
+                        let displayStr = '', objPos = '50% 50%', streamUrl = '';
+                        if (uploadData) {
+                            const parts = (uploadData.text||'').split('||POS:');
+                            displayStr = parts[0];
+                            if (parts[1]) objPos = parts[1].replace(',','% ') + '%';
+                            // ★ lh3 URL 변환 적용 (다른 사람 영상도 CORS 없이 재생)
+                            streamUrl = getDriveStreamUrl(uploadData.videoUrl);
                         }
 
                         return `
                         <div class="relative flex-1 rounded-[24px] overflow-hidden bg-black flex items-center justify-center shadow-sm w-full">
                             ${uploadData ? `
-                                <!-- <img> 대신 원본 <video> 태그로 다시 롤백되었습니다. -->
-                                <video src="${videoSrc}" autoplay loop muted playsinline class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none" style="object-position: ${objPos};"></video>
-                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 z-0 pointer-events-none"></div>
+                                <video src="${streamUrl}" autoplay loop muted playsinline preload="auto"
+                                    class="object-cover w-full h-full absolute inset-0 opacity-80 pointer-events-none"
+                                    style="object-position:${objPos};"
+                                    onerror="this.style.display='none'"></video>
+                                <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none"></div>
                             ` : `
                                 <div class="noise-bg pointer-events-none"></div>
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-0 pointer-events-none"></div>
-                                
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none"></div>
                                 ${isMe ? `
-                                    <div class="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 bg-black/30 backdrop-blur-sm">
+                                    <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/30 backdrop-blur-sm">
                                         <label class="bg-pink-500 text-white px-4 py-2 rounded-full font-bold shadow-lg cursor-pointer hover:bg-pink-600 transition-colors flex items-center gap-2 text-xs sm:text-sm">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                                             영상 선택
-                                            <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
+                                            <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}')">
                                         </label>
                                     </div>
                                 ` : `
@@ -508,105 +409,67 @@
                                     </div>
                                 `}
                             `}
-
                             <div class="absolute inset-0 p-3 sm:p-4 flex flex-col justify-between z-10 pointer-events-none">
                                 <div class="flex justify-between items-start">
                                     <div class="flex items-center gap-1.5">
                                         <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/50 flex items-center justify-center text-xs sm:text-sm ${member.profile} shadow-md">${member.emoji}</div>
                                         <div class="flex items-center gap-2">
-                                            <!-- 이름 제거하고 학번(id)만 노출되도록 롤백 -->
-                                            <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
-                                                ${member.id}
-                                            </span>
+                                            <!-- ★ member.name 제거, 학번만 표시 -->
+                                            <span class="text-white font-bold text-[10px] sm:text-xs drop-shadow-md bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">${member.id}</span>
                                             ${isMe && uploadData ? `
                                                 <label class="pointer-events-auto bg-gray-100/20 hover:bg-gray-100/40 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-full cursor-pointer border border-white/30 transition-colors shadow-sm">
                                                     영상 수정
-                                                    <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this, '${mission.time}', '${member.id}')">
+                                                    <input type="file" accept="video/*" class="hidden" onchange="openPreviewModal(this,'${mission.time}','${member.id}')">
                                                 </label>
                                             ` : ''}
                                         </div>
                                     </div>
                                     <span class="text-white font-semibold text-[9px] sm:text-[10px] tracking-wider drop-shadow-md bg-black/30 px-2 py-0.5 rounded">${mission.date}</span>
                                 </div>
-
                                 <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center w-[90%]">
-                                    <h1 class="text-white font-black text-3xl sm:text-5xl tracking-tighter" style="text-shadow: 0 4px 12px rgba(0,0,0,0.8);">${mission.time}</h1>
-                                    ${displayStr ? `
-                                        <p class="text-white font-bold text-[10px] sm:text-xs mt-1 sm:mt-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20" style="text-shadow: 0 1px 3px rgba(0,0,0,0.8);">${displayStr}</p>
-                                    ` : ''}
+                                    <h1 class="text-white font-black text-3xl sm:text-5xl tracking-tighter" style="text-shadow:0 4px 12px rgba(0,0,0,0.8);">${mission.time}</h1>
+                                    ${displayStr ? `<p class="text-white font-bold text-[10px] sm:text-xs mt-1 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl inline-block max-w-full truncate border border-white/20">${displayStr}</p>` : ''}
                                 </div>
-
                                 <div class="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-black/60 backdrop-blur-md text-white text-[9px] sm:text-[10px] px-2 py-1.5 rounded-lg border border-white/10 shadow-lg max-w-[70%] text-right truncate">
                                     🎯 ${mission.topic}
                                 </div>
                             </div>
-                        </div>
-                        `;
+                        </div>`;
                     }).join('')}
-                </div>
-            `).join('');
+                </div>`).join('');
 
-            // 비디오 태그 강제 플레이 트리거 복구
+            // 비디오 자동재생 트리거
             setTimeout(() => {
-                const videos = document.querySelectorAll('#main-scroll video');
-                videos.forEach(vid => {
-                    vid.muted = true;
-                    vid.playsInline = true;
-                    const playPromise = vid.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(e => console.log('재생 대기중...', e));
-                    }
+                document.querySelectorAll('#main-scroll video').forEach(v => {
+                    v.muted = true; v.loop = true;
+                    v.play().catch(() => {});
                 });
-            }, 100);
+            }, 300);
         }
 
-        // --- 6. [스크롤 조작 지원] ---
-        function updateActiveDot(activeIndex) {
-            if(!groupMissions[activeIndex]) return;
-            const dots = document.querySelectorAll('.dot-btn');
-            dots.forEach((dot, idx) => {
-                if (idx === activeIndex) {
-                    dot.className = "dot-btn transition-all duration-300 flex items-center justify-center text-yellow-400 scale-125";
-                    dot.innerHTML = "🙂";
-                } else {
-                    dot.className = "dot-btn transition-all duration-300 flex items-center justify-center w-2 h-2 rounded-full bg-gray-200";
-                    dot.innerHTML = "";
-                }
+        // ── 6. 스크롤 ─────────────────────────────────────────────────────
+        function updateActiveDot(idx) {
+            if (!groupMissions[idx]) return;
+            document.querySelectorAll('.dot-btn').forEach((d, i) => {
+                if (i === idx) { d.className='dot-btn transition-all duration-300 flex items-center justify-center text-yellow-400 scale-125'; d.innerHTML='🙂'; }
+                else           { d.className='dot-btn transition-all duration-300 flex items-center justify-center w-2 h-2 rounded-full bg-gray-200'; d.innerHTML=''; }
             });
-            currentTimeDisplay.innerText = groupMissions[activeIndex].time;
+            currentTimeDisplay.innerText = groupMissions[idx].time;
         }
 
-        window.scrollToMission = function(index) {
-            const width = mainScroll.clientWidth;
-            mainScroll.scrollTo({ left: width * index, behavior: 'smooth' });
+        window.scrollToMission = function(idx) {
+            mainScroll.scrollTo({ left: mainScroll.clientWidth * idx, behavior: 'smooth' });
         };
 
         mainScroll.addEventListener('scroll', () => {
-            const scrollX = mainScroll.scrollLeft;
-            const width = mainScroll.clientWidth;
-            const activeIndex = Math.round(scrollX / width);
-            updateActiveDot(activeIndex);
+            updateActiveDot(Math.round(mainScroll.scrollLeft / mainScroll.clientWidth));
         });
 
-        let isDown = false, startX, scrollLeft;
-        mainScroll.addEventListener('mousedown', (e) => {
-            isDown = true;
-            mainScroll.classList.remove('snap-mandatory'); 
-            startX = e.pageX - mainScroll.offsetLeft;
-            scrollLeft = mainScroll.scrollLeft;
-        });
-        mainScroll.addEventListener('mouseleave', () => { isDown = false; mainScroll.classList.add('snap-mandatory'); });
-        mainScroll.addEventListener('mouseup', () => {
-            isDown = false; mainScroll.classList.add('snap-mandatory');
-            const width = mainScroll.clientWidth;
-            scrollToMission(Math.round(mainScroll.scrollLeft / width));
-        });
-        mainScroll.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - mainScroll.offsetLeft;
-            mainScroll.scrollLeft = scrollLeft - (x - startX) * 2; 
-        });
+        let isDown=false, startX, scrollLeft;
+        mainScroll.addEventListener('mousedown', e => { isDown=true; mainScroll.classList.remove('snap-mandatory'); startX=e.pageX-mainScroll.offsetLeft; scrollLeft=mainScroll.scrollLeft; });
+        mainScroll.addEventListener('mouseleave', () => { isDown=false; mainScroll.classList.add('snap-mandatory'); });
+        mainScroll.addEventListener('mouseup', () => { isDown=false; mainScroll.classList.add('snap-mandatory'); scrollToMission(Math.round(mainScroll.scrollLeft/mainScroll.clientWidth)); });
+        mainScroll.addEventListener('mousemove', e => { if(!isDown) return; e.preventDefault(); mainScroll.scrollLeft = scrollLeft-(e.pageX-mainScroll.offsetLeft-startX)*2; });
     </script>
 </body>
 </html>
