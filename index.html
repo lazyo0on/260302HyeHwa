@@ -36,29 +36,37 @@
         video { object-fit: cover; width: 100%; height: 100%; transform-origin: center; }
     </style>
 </head>
-<body class="bg-gray-900 font-sans text-gray-800 h-[100dvh] overflow-hidden flex flex-col items-center justify-center">
+<body class="bg-sky-50 font-sans text-gray-800 h-[100dvh] overflow-hidden flex flex-col items-center justify-center">
 
     <!-- Loading Screen -->
-    <div id="loading-screen" class="absolute inset-0 z-[70] bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center text-white transition-opacity duration-300">
-        <svg id="loading-spinner" class="animate-spin h-10 w-10 text-yellow-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse text-center px-6">데이터를 불러오는 중입니다...</p>
-        <p id="error-details" class="text-sm font-bold text-red-400 mt-4 px-6 text-center whitespace-pre-wrap"></p>
+    <div id="loading-screen" class="absolute inset-0 z-[70] bg-[url('cover.png')] bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center transition-opacity duration-300">
+        <!-- 배경 블러 처리 (글씨가 잘 보이도록) -->
+        <div class="absolute inset-0 bg-white/40 backdrop-blur-lg"></div>
+        <div class="z-10 flex flex-col items-center">
+            <svg id="loading-spinner" class="animate-spin h-12 w-12 text-yellow-400 drop-shadow-md mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="loading-text" class="font-bold text-sm tracking-wider animate-pulse text-center px-6 text-blue-900 drop-shadow-sm">데이터를 불러오는 중입니다...</p>
+            <p id="error-details" class="text-sm font-bold text-pink-600 mt-4 px-6 text-center whitespace-pre-wrap bg-white/60 p-2 rounded-lg"></p>
+        </div>
     </div>
 
     <!-- Login Screen -->
-    <div id="login-screen" class="absolute inset-0 z-[60] bg-gray-900 flex flex-col items-center justify-center p-6 text-white transition-opacity duration-500">
-        <div class="w-full max-w-xs text-center">
-            <h1 class="text-4xl font-black mb-2 text-yellow-400 drop-shadow-lg">현체로그</h1>
-            <p class="text-gray-400 text-sm mb-10">Supabase Edition</p>
-            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-4 rounded-2xl mb-3 text-gray-900 font-bold focus:outline-none">
-            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-4 rounded-2xl mb-6 text-gray-900 font-bold focus:outline-none">
-            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-gray-900 font-black text-lg py-4 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-transform">
+    <div id="login-screen" class="absolute inset-0 z-[60] bg-[url('cover.png')] bg-cover bg-center bg-no-repeat flex flex-col items-center justify-start pt-[12dvh] px-6 transition-opacity duration-500">
+        <!-- 유리 질감(Frosted Glass) 효과를 준 로그인 박스 -->
+        <div class="w-full max-w-xs text-center bg-white/20 backdrop-blur-md border border-white/40 p-7 rounded-[32px] shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
+            <h1 class="text-5xl font-black mb-1 text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] tracking-tight">현체로그</h1>
+            <p class="text-blue-900 font-extrabold text-sm mb-8 drop-shadow-sm">우리들의 체험학습 기록</p>
+            
+            <input id="login-id" type="number" placeholder="학번 (예: 30201)" class="w-full p-3.5 rounded-2xl mb-3 bg-white/90 text-blue-900 font-bold placeholder-blue-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/60 shadow-inner">
+            <input id="login-pw" type="password" placeholder="비밀번호" class="w-full p-3.5 rounded-2xl mb-6 bg-white/90 text-blue-900 font-bold placeholder-blue-300 focus:outline-none focus:ring-4 focus:ring-yellow-400/60 shadow-inner">
+            
+            <!-- 교복 색상에 맞춘 노란 버튼 -->
+            <button onclick="handleLogin()" class="w-full bg-yellow-400 text-blue-900 font-black text-lg py-3.5 rounded-2xl shadow-[0_4px_14px_0_rgba(250,204,21,0.6)] hover:scale-[1.02] active:scale-[0.98] transition-transform">
                 시작하기
             </button>
-            <p id="login-error" class="text-pink-400 text-sm mt-4 hidden font-medium">학번이나 비밀번호를 확인해주세요.</p>
+            <p id="login-error" class="text-pink-600 text-sm mt-4 hidden font-bold bg-white/60 py-2 rounded-lg backdrop-blur-sm">학번이나 비밀번호를 확인해주세요.</p>
         </div>
     </div>
 
